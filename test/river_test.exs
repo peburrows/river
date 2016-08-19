@@ -1,4 +1,5 @@
 defmodule River.Request do
+  require Bitwise
   def get(url) do
     :ssl.start
 
@@ -26,97 +27,53 @@ defmodule River.Request do
 
     :ssl.send(socket, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
     IO.puts "sending the settings frame"
-    # :ssl.send(socket, <<0x3::size(16), 200::size(32)>>)
-    frame = River.Frame.encode(<<0x3::size(16), 100::size(32)>>, 0, 0x4)
-    River.Frame.decode(frame)
+
+    {:ok, ctx} = HPack.Table.start_link(1000)
+
+    frame = River.Frame.encode(<<0x3::size(16), 100::size(32), 0x4::size(16), 65535::size(32)>>, 0, 0x4)
+    # this is just so it spits out the decoded frame info for us
+    # River.Frame.decode(frame, nil, socket)
+
     :ssl.send(socket, frame)
     :ssl.setopts(socket, [active: true])
 
-    listen()
-    # spawn(fn()-> do
-    #     :ssl.send(socket, River::Frame.encode())
-    # end)
-    # receive do
-    #   anything ->
-    #     IO.puts "received packet"
-    #     {:ssl, _, payload} = anything
-    #     River.Frame.decode(payload)
-    # after 3_000 ->
-    #     IO.puts "timeout"
-    # end
+    # spawn_link(__MODULE__, :listen, [])
 
-    # :timer.sleep(2_000)
-    # :erlang.process_info(self, :messages) |> IO.inspect
+    spawn(fn()->
+      IO.puts "#{IO.ANSI.red}sending the headers frame#{IO.ANSI.reset}"
+      headers = <<0::size(8), 130>>
+      headers = HPack.encode([
+        {":method", "GET"},
+        {":scheme", "https"},
+        {":path", "/"},
+        {":authority", url},
+        {"accept", "*/*"},
+        {"user-agent", "River/0.0.1"}
+      ], ctx)
+
+      IO.ANSI.red
+      f = River.Frame.encode(headers, 25, 0x1, Bitwise.|||(0x4, 0x1))
+
+      :ssl.send(socket, f)
+    end)
+
+    listen(ctx, socket)
+
     :ssl.close(socket)
   end
 
-  defp listen do
+  def listen(ctx, socket) do
     receive do
       anything ->
-        IO.puts "received packet: "
         {:ssl, _, payload} = anything
-        River.Frame.decode(payload)
-        listen()
+        River.Frame.decode(payload, ctx, socket)
+        listen(ctx, socket)
     after 2_000 ->
         IO.puts "nothing else, leaving!"
     end
   end
 end
 
-defmodule River.Frame do
-  defstruct [:payload, :stream_id, :type, :flags, :length]
-
-  def encode(value, stream_id, type, flags \\ 0) do
-    <<
-      byte_size(value)::size(24),
-      type::size(8),
-      flags::size(8),
-      0::size(1), # emtpy bit
-      stream_id::size(31),
-      value::bitstring
-    >>
-  end
-
-  def decode(<< length::size(24), type::size(8), flags::size(8), _::size(1), stream_id::size(31), payload::binary-size(length)>>) do
-    IO.puts "\tframe type: #{inspect frame_type(type)}"
-    IO.puts "\tpayload size: #{inspect length}"
-    IO.puts "\tflags: #{inspect flags}"
-    IO.puts "\tstream ID: #{inspect stream_id}"
-    IO.puts "\tthe payload: #{inspect decode_payload(type, payload)}"
-  end
-
-  @data          0x0
-  @headers       0x1
-  @priority      0x2
-  @rst_stream    0x3
-  @settings      0x4
-  @push_promise  0x5
-  @ping          0x6
-  @goaway        0x7
-  @window_update 0x8
-  @continuation  0x9
-
-  # settings frame
-  def decode_payload(@settings, payload) do
-    decode_settings(payload, [])
-  end
-  defp decode_settings(<<>>, acc), do: acc
-  defp decode_settings(<<id::size(16), value::(32), rest::binary>>, acc) do
-    decode_settings(rest, [{setting_name(id), value} | acc])
-  end
-
-  defp frame_type(@settings), do: :SETTINGS
-
-  defp setting_name(0x1), do: :SETTINGS_HEADER_TABLE_SIZE
-  defp setting_name(0x2), do: :SETTINGS_ENABLE_PUSH
-  defp setting_name(0x3), do: :SETTINGS_MAX_CONCURRENT_STREAMS
-  defp setting_name(0x4), do: :SETTINGS_INITIAL_WINDOW_SIZE
-  defp setting_name(0x5), do: :SETTINGS_MAX_FRAME_SIZE
-  defp setting_name(0x6), do: :SETTINGS_MAX_HEADER_LIST_SIZE
-end
-
-defmodule River.FrameHeader do
-end
 
 defmodule RiverTest do
   use ExUnit.Case
@@ -132,5 +89,6 @@ defmodule RiverTest do
 
   test "connecting via SSL to something like vitalsource.com" do
     River.Request.get("http2.golang.org")
+    # River.Request.get("nghttp2.org")
   end
 end
