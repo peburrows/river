@@ -14,7 +14,7 @@ defmodule River.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :hpack]]
   end
 
   # Dependencies can be Hex packages:
@@ -27,6 +27,12 @@ defmodule River.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:hpack, "~> 1.0.0"},
+      # {:httpoison, "> 0.0.1"},
+      {:hackney, path: "../hackney"},
+      {:certifi, "~> 0.4.0"}
+      # {:chatterbox, github: "joedevivo/chatterbox"}
+    ]
   end
 end
