@@ -44,12 +44,6 @@ defmodule River.Frame do
                decode_payload(type, payload, ctx)
                ""
            end
-    # <<payload::binary-size(length), next::binary>> = rest
-    # if type == @data do
-    #   IO.puts "\n\n" <> decode_payload(type, payload, ctx)
-    # else
-    #   IO.puts "\tthe payload: #{inspect decode_payload(type, payload, ctx)}"
-    # end
     decode(next, ctx, socket)
   end
 
@@ -63,6 +57,11 @@ defmodule River.Frame do
 
   def decode_payload(@data, payload, _ctx), do: payload
   def decode_payload(@rst_stream, payload, _ctx), do: payload
+
+  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, _ctx) do
+    IO.puts "goaway because of stream: #{sid} -- #{error}"
+    error
+    end
 
   # settings frame
   def decode_payload(@settings, payload, _ctx) do
@@ -78,6 +77,8 @@ defmodule River.Frame do
   defp frame_type(@data),       do: :DATA
   defp frame_type(@rst_stream), do: :RST_STREAM
   defp frame_type(@push_promise), do: :PUSH_PROMISE
+  defp frame_type(@goaway),     do: :GOAWAY
+
 
   defp setting_name(0x1), do: :SETTINGS_HEADER_TABLE_SIZE
   defp setting_name(0x2), do: :SETTINGS_ENABLE_PUSH
@@ -109,6 +110,7 @@ defmodule River.Frame do
   end
 
   defp flags(@rst_stream, _f), do: []
+  defp flags(@goaway, _f),     do: []
 
   defp get_flags(acc, f, {flag, name}) do
     case Bitwise.&&&(f, flag) do
