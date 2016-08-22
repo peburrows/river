@@ -28,13 +28,14 @@ defmodule River.Connection do
         stream_id: 1,
         host:      host,
         socket:    connect!(host),
-        ctx:       HPACK.Context.new(%{max_size: 4096}),
+        encode_ctx: HPACK.Context.new(%{max_size: 4096}),
+        decode_ctx: HPACK.Context.new(%{max_size: 4096}),
      }}
   end
 
   # when we make a request, we need to spin up a new GenServer to handle this stream
   def handle_cast({:get, path}, state) do
-    %{ctx: ctx, socket: socket, host: host, stream_id: stream_id, ctx: ctx} = state
+    %{socket: socket, host: host, stream_id: stream_id, encode_ctx: ctx} = state
     :ssl.setopts(socket, [active: true])
 
     {headers, ctx} = HPACK.encode([
@@ -54,15 +55,15 @@ defmodule River.Connection do
     IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | ctx: ctx, stream_id: stream_id} }
+    {:noreply, %{state | encode_ctx: ctx, stream_id: stream_id} }
   end
 
   def handle_info({:ssl, _, payload} = msg, state) do
-    %{ctx: ctx, socket: socket} = state
+    %{decode_ctx: ctx, socket: socket} = state
     {_data, ctx} = River.Frame.decode(payload, ctx, socket)
     IO.puts "the context: #{inspect ctx}"
-    # {:noreply, %{state | ctx: ctx}}
-    {:noreply, state}
+    {:noreply, %{state | decode_ctx: ctx}}
+    # {:noreply, state}
   end
 
   def handle_info(msg, state) do
