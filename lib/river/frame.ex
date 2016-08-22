@@ -11,101 +11,57 @@ defmodule River.Frame do
       flags::size(8),
       0::size(1), # emtpy bit
       stream_id::size(31),
-      value::bitstring
+      value::binary
     >>
   end
 
-  def decode(<<>>, _ctx, _socket), do: nil
-  def decode(<< length::size(24), type::size(8), flags::size(8), _::size(1), stream_id::size(31), rest::binary>>, ctx, socket) do
+  def decode(<<>>, ctx, _socket), do: {[], ctx}
+  def decode(<<length::size(24), type::size(8), flags::size(8), _::size(1), stream_id::size(31), rest::binary>>, ctx, socket) do
     IO.puts "Decoding a frame (#{length} -- #{byte_size(rest)}):"
     IO.puts "\tframe type: #{inspect frame_type(type)}"
-    IO.puts "\tflags: #{inspect flags(type, flags)}"
+    IO.puts "\tflags: #{inspect River.Flags.flags(type, flags)}"
     IO.puts "\tstream ID: #{inspect stream_id}"
-    next = case rest do
+    {next, ctx} = case rest do
              <<payload::binary-size(length), n::binary>> ->
                IO.puts "\tpayload size: #{inspect length} (#{byte_size(payload)})"
                IO.puts "\tpayload: #{inspect payload}"
-               decode_payload(type, payload, ctx)
-               n
+               {dec, ctx} = decode_payload(type, payload, ctx)
+               IO.puts "\tdecoded: #{inspect dec}"
+               {n, ctx}
              payload ->
                # this means the rest of the payload is coming in the next packet...
                IO.puts "\tpayload size: #{inspect length} (#{byte_size(payload)})"
                IO.puts "\tpayload: #{inspect payload}"
-               decode_payload(type, payload, ctx)
-               ""
+               {dec, ctx}= decode_payload(type, payload, ctx)
+               IO.puts "decoded: #{inspect dec}"
+               {"", ctx}
            end
     decode(next, ctx, socket)
   end
 
-
-
   def decode_payload(@headers, payload, ctx),
-    do: HPack.decode(payload, ctx)
+    do: HPACK.decode(payload, ctx)
 
   def decode_payload(@push_promise, payload, ctx),
     do: HPack.decode(payload, ctx)
 
-  def decode_payload(@data, payload, _ctx), do: payload
-  def decode_payload(@rst_stream, payload, _ctx), do: payload
+  def decode_payload(@data, payload, ctx), do: {payload, ctx}
+  def decode_payload(@rst_stream, payload, ctx), do: {payload, ctx}
 
-  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, _ctx) do
+  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, ctx) do
     IO.puts "goaway because of stream: #{sid} -- #{error}"
-    error
-    end
+    {error, ctx}
+  end
 
   # settings frame
-  def decode_payload(@settings, payload, _ctx) do
-    decode_settings(payload, [])
-  end
-  defp decode_settings(<<>>, acc), do: acc
-  defp decode_settings(<<id::size(16), value::(32), rest::binary>>, acc) do
-    decode_settings(rest, [{setting_name(id), value} | acc])
+  def decode_payload(@settings, payload, ctx) do
+    River.Frame.Settings.decode(payload, ctx)
   end
 
-  defp frame_type(@settings),   do: :SETTINGS
-  defp frame_type(@headers),    do: :HEADERS
-  defp frame_type(@data),       do: :DATA
-  defp frame_type(@rst_stream), do: :RST_STREAM
+  defp frame_type(@settings),     do: :SETTINGS
+  defp frame_type(@headers),      do: :HEADERS
+  defp frame_type(@data),         do: :DATA
+  defp frame_type(@rst_stream),   do: :RST_STREAM
   defp frame_type(@push_promise), do: :PUSH_PROMISE
-  defp frame_type(@goaway),     do: :GOAWAY
-
-
-  defp setting_name(0x1), do: :SETTINGS_HEADER_TABLE_SIZE
-  defp setting_name(0x2), do: :SETTINGS_ENABLE_PUSH
-  defp setting_name(0x3), do: :SETTINGS_MAX_CONCURRENT_STREAMS
-  defp setting_name(0x4), do: :SETTINGS_INITIAL_WINDOW_SIZE
-  defp setting_name(0x5), do: :SETTINGS_MAX_FRAME_SIZE
-  defp setting_name(0x6), do: :SETTINGS_MAX_HEADER_LIST_SIZE
-
-  defp flags(@settings, f) do
-    get_flags([], f, {0x1, :ACK})
-  end
-
-  defp flags(@data, f) do
-    get_flags([], f, {0x1, :END_STREAM})
-  end
-
-  defp flags(@push_promise, f) do
-    []
-    |> get_flags(f, {0x4, :END_HEADERS})
-    |> get_flags(f, {0x8, :PADDED})
-  end
-
-  defp flags(@headers, f) do
-    []
-    |> get_flags(f, {0x4, :END_HEADERS})
-    |> get_flags(f, {0x1, :END_STREAM})
-    |> get_flags(f, {0x8, :PADDED})
-    |> get_flags(f, {0x20, :PRIORITY})
-  end
-
-  defp flags(@rst_stream, _f), do: []
-  defp flags(@goaway, _f),     do: []
-
-  defp get_flags(acc, f, {flag, name}) do
-    case Bitwise.&&&(f, flag) do
-      ^flag -> [name|acc]
-      _     -> acc
-    end
-  end
+  defp frame_type(@goaway),       do: :GOAWAY
 end

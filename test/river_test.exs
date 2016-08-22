@@ -90,8 +90,9 @@ defmodule RiverTest do
   test "doing things via the genserver" do
     alias Experimental.DynamicSupervisor
     DynamicSupervisor.start_child(River.Supervisor, ["http2.golang.org", [name: GoogleConn]])
-    GenServer.cast(GoogleConn, {:get, "/.well-known/h2interop/state"})
-    :timer.sleep(1000)
+    GenServer.cast(GoogleConn, {:get, "/"})
+    # :timer.sleep(1000)
+    GenServer.cast(GoogleConn, {:get, "/"})
     GenServer.cast(GoogleConn, {:get, "/.well-known/h2interop/state"})
 
     :timer.sleep(3_000)

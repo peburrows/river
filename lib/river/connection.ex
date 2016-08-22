@@ -24,21 +24,20 @@ defmodule River.Connection do
 
   def init([host: host]) do
     # connect to the server, of course
-    {:ok, ctx} = HPack.Table.start_link(1_000)
     {:ok, %{
-        stream_id: 0,
+        stream_id: 1,
         host:      host,
         socket:    connect!(host),
-        ctx:       ctx,
+        ctx:       HPACK.Context.new(%{max_size: 4096}),
      }}
   end
 
   # when we make a request, we need to spin up a new GenServer to handle this stream
   def handle_cast({:get, path}, state) do
-    %{ctx: ctx, socket: socket, host: host, stream_id: stream_id} = state
+    %{ctx: ctx, socket: socket, host: host, stream_id: stream_id, ctx: ctx} = state
     :ssl.setopts(socket, [active: true])
 
-    headers = HPack.encode([
+    {headers, ctx} = HPACK.encode([
       {":method", "GET"},
       {":scheme", "https"},
       {":path", path},
@@ -47,16 +46,22 @@ defmodule River.Connection do
       {"user-agent", "River/0.0.1"}
     ], ctx)
 
-    f = River.Frame.encode(headers, stream_id+1, 0x1, Bitwise.|||(0x4, 0x1))
-    IO.puts "the headers: #{inspect f}"
+    stream_id = stream_id + 2
+
+    f = River.Frame.encode(headers, stream_id, 0x1, Bitwise.|||(0x4, 0x1))
+    IO.puts "the headers (stream ID - #{stream_id}): #{inspect headers}"
+
+    IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | stream_id: stream_id+1} }
+    {:noreply, %{state | ctx: ctx, stream_id: stream_id} }
   end
 
   def handle_info({:ssl, _, payload} = msg, state) do
     %{ctx: ctx, socket: socket} = state
-    River.Frame.decode(payload, ctx, socket)
+    {_data, ctx} = River.Frame.decode(payload, ctx, socket)
+    IO.puts "the context: #{inspect ctx}"
+    # {:noreply, %{state | ctx: ctx}}
     {:noreply, state}
   end
 
@@ -82,7 +87,10 @@ defmodule River.Connection do
 
     {:ok, socket} = :ssl.connect(host, 443, opts)
     :ssl.send(socket, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
-    frame = River.Frame.encode(<<0x3::size(16), 100::size(32), 0x4::size(16), 65535::size(32)>>, 0, 0x4)
+
+    frame = River.Frame.encode(<<0x3::size(16), 100::size(32), 0x4::size(16), 65535::size(32), 0x1::size(16), 4096::size(32)>>, 0, 0x4)
+    IO.puts "#{IO.ANSI.green_background}#{Base.encode16(frame, case: :lower)}#{IO.ANSI.reset}"
+
     :ssl.send(socket, frame)
     socket
   end
