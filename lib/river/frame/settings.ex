@@ -1,4 +1,19 @@
 defmodule River.Frame.Settings do
+  use River.FrameTypes
+
+  def encode(settings, stream_id, flags \\ 0) when is_list(settings) do
+    settings
+    |> encode_payload
+    |> River.Frame.encode(stream_id, @settings, flags)
+  end
+
+  def encode_payload(settings),
+    do: encode_payload(settings, <<>>)
+  defp encode_payload([], acc), do: acc
+  defp encode_payload([{name, value}|tail], acc) do
+    encode_payload(tail, (acc <> <<setting(name)::16, value::32>>))
+  end
+
   def decode(payload, ctx),    do: decode(payload, ctx, [])
   defp decode(<<>>, ctx, acc), do: {acc, ctx}
   defp decode(<<id::16, value::32, rest::binary>>, ctx, acc) do
@@ -11,4 +26,11 @@ defmodule River.Frame.Settings do
   defp name(0x4), do: :SETTINGS_INITIAL_WINDOW_SIZE
   defp name(0x5), do: :SETTINGS_MAX_FRAME_SIZE
   defp name(0x6), do: :SETTINGS_MAX_HEADER_LIST_SIZE
+
+  defp setting(:SETTINGS_HEADER_TABLE_SIZE), do: 0x1
+  defp setting(:SETTINGS_ENABLE_PUSH), do: 0x2
+  defp setting(:SETTINGS_MAX_CONCURRENT_STREAMS), do: 0x3
+  defp setting(:SETTINGS_INITIAL_WINDOW_SIZE), do: 0x4
+  defp setting(:SETTINGS_MAX_FRAME_SIZE), do: 0x5
+  defp setting(:SETTINGS_MAX_HEADER_LIST_SIZE), do: 0x6
 end

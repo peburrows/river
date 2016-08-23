@@ -4,6 +4,8 @@ defmodule River.Frame do
 
   defstruct [:payload, :stream_id, :type, :flags, :length]
 
+  def http2_header, do: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+
   def encode(value, stream_id, type, flags \\ 0) do
     <<
       byte_size(value)::size(24),
@@ -43,7 +45,7 @@ defmodule River.Frame do
     do: HPACK.decode(payload, ctx)
 
   def decode_payload(@push_promise, payload, ctx),
-    do: HPack.decode(payload, ctx)
+    do: HPACK.decode(payload, ctx)
 
   def decode_payload(@data, payload, ctx), do: {payload, ctx}
   def decode_payload(@rst_stream, payload, ctx), do: {payload, ctx}
