@@ -18,8 +18,8 @@ defmodule River.Flags do
 
   def flags(@headers, f) do
     []
-    |> get_flags(f, {0x4, :END_HEADERS})
     |> get_flags(f, {0x1, :END_STREAM})
+    |> get_flags(f, {0x4, :END_HEADERS})
     |> get_flags(f, {0x8, :PADDED})
     |> get_flags(f, {0x20, :PRIORITY})
   end
