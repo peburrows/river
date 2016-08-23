@@ -12,7 +12,7 @@ defmodule River.FlagsTest do
   test "extracting the :END_STREAM flag from a data frame" do
     assert [:END_STREAM] == Flags.flags(@data, 0x1)
 
-    # data frames only have on valid flag, so ignore others
+    # data frames only have one valid flag, so make sure we ignore others
     assert [:END_STREAM] == Flags.flags(@data, Bitwise.|||(0x1, 0x4) )
   end
 

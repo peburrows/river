@@ -24,6 +24,7 @@ defmodule River.Mixfile do
       {:gen_stage, "~> 0.5"},
       {:gen_state_machine, "~> 1.0.2"},
       {:hackney, path: "../hackney"},
+      {:connection, "~> 1.0.4"},
       {:certifi, "~> 0.4.0"}
     ]
   end
