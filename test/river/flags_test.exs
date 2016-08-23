@@ -21,4 +21,12 @@ defmodule River.FlagsTest do
     assert [:END_HEADERS, :END_STREAM] == Flags.flags(@headers, Bitwise.|||(0x1, 0x4))
     assert [:PRIORITY, :PADDED] == Flags.flags(@headers, Bitwise.|||(0x8, 0x20))
   end
+
+  test "extracting flags from rst_stream frame" do
+    assert [] == Flags.flags(@rst_stream, 0x1)
+  end
+
+  test "extracting flags from goaway frame" do
+    assert [] == Flags.flags(@goaway, 0x1)
+  end
 end
