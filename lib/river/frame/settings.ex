@@ -20,17 +20,17 @@ defmodule River.Frame.Settings do
     decode(rest, ctx, [{name(id), value} | acc])
   end
 
-  defp name(0x1), do: :SETTINGS_HEADER_TABLE_SIZE
-  defp name(0x2), do: :SETTINGS_ENABLE_PUSH
-  defp name(0x3), do: :SETTINGS_MAX_CONCURRENT_STREAMS
-  defp name(0x4), do: :SETTINGS_INITIAL_WINDOW_SIZE
-  defp name(0x5), do: :SETTINGS_MAX_FRAME_SIZE
-  defp name(0x6), do: :SETTINGS_MAX_HEADER_LIST_SIZE
+  defp name(0x1), do: :HEADER_TABLE_SIZE
+  defp name(0x2), do: :ENABLE_PUSH
+  defp name(0x3), do: :MAX_CONCURRENT_STREAMS
+  defp name(0x4), do: :INITIAL_WINDOW_SIZE
+  defp name(0x5), do: :MAX_FRAME_SIZE
+  defp name(0x6), do: :MAX_HEADER_LIST_SIZE
 
-  defp setting(:SETTINGS_HEADER_TABLE_SIZE), do: 0x1
-  defp setting(:SETTINGS_ENABLE_PUSH), do: 0x2
-  defp setting(:SETTINGS_MAX_CONCURRENT_STREAMS), do: 0x3
-  defp setting(:SETTINGS_INITIAL_WINDOW_SIZE), do: 0x4
-  defp setting(:SETTINGS_MAX_FRAME_SIZE), do: 0x5
-  defp setting(:SETTINGS_MAX_HEADER_LIST_SIZE), do: 0x6
+  defp setting(:HEADER_TABLE_SIZE), do: 0x1
+  defp setting(:ENABLE_PUSH), do: 0x2
+  defp setting(:MAX_CONCURRENT_STREAMS), do: 0x3
+  defp setting(:INITIAL_WINDOW_SIZE), do: 0x4
+  defp setting(:MAX_FRAME_SIZE), do: 0x5
+  defp setting(:MAX_HEADER_LIST_SIZE), do: 0x6
 end
