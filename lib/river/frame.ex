@@ -54,46 +54,13 @@ defmodule River.Frame do
     end
   end
 
-
-  def decode(<<>>, ctx, _socket), do: {[], ctx}
-  def decode(<<length::size(24), type::size(8), flags::size(8), _::size(1), stream_id::size(31), rest::binary>>, ctx, socket) do
-    IO.puts "Decoding a frame (#{length} -- #{byte_size(rest)}):"
-    # IO.puts "\tframe type: #{inspect frame_type(frame.type)}"
-    # IO.puts "\tflags: #{inspect }"
-    # IO.puts "\tstream ID: #{inspect stream_id}"
-    {next, ctx} = case rest do
-             <<payload::binary-size(length), n::binary>> ->
-              frame = %River.Frame{
-                      length:    length,
-                      type:      type,
-                      flags:     River.Flags.flags(type, flags),
-                      stream_id: stream_id,
-                      payload:   payload
-                    }
-                      IO.puts "the frame: #{inspect frame}"
-               # IO.puts "\tpayload size: #{inspect length} (#{byte_size(payload)})"
-               # IO.puts "\tpayload: #{inspect payload}"
-               # IO.puts "#{Base.encode16(payload, case: :lower)}"
-               {dec, ctx} = decode_payload(type, payload, ctx)
-               # IO.puts "\tdecoded: #{inspect dec}"
-               {n, ctx}
-             payload ->
-               # this means the rest of the payload is coming in the next packet...
-               IO.puts "\tpayload size: #{inspect length} (#{byte_size(payload)})"
-               IO.puts "\tpayload: #{inspect payload}"
-               {dec, ctx}= decode_payload(type, payload, ctx)
-               # IO.puts "decoded: #{inspect dec}"
-               {"", ctx}
-           end
-    decode(next, ctx, socket)
-  end
-
   def decode_payload(@headers, payload, ctx),
     do: HPACK.decode(payload, ctx)
 
+  # we have encountered an issue with a certain PUSH_PROMISE packet
+  # coming from nghttp2.org
   def decode_payload(@push_promise, payload, ctx),
     # do: HPACK.decode(payload, ctx)
-  # something going on with decoding the push promise for some reason...
     do: {payload, ctx}
 
   def decode_payload(@data, payload, ctx), do: {payload, ctx}
