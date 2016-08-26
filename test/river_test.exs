@@ -82,20 +82,15 @@ defmodule RiverTest do
       "hello">> = River.Frame.encode("hello", sid, 0x4)
   end
 
-  # test "connecting via SSL to something like vitalsource.com" do
-  #   River.Request.get("http2.golang.org")
-  #   # River.Request.get("nghttp2.org")
-  # end
-
   test "doing things via the genserver" do
     alias Experimental.DynamicSupervisor
-    DynamicSupervisor.start_child(River.Supervisor, ["http2.golang.org", [name: GoogleConn]])
-    DynamicSupervisor.start_child(River.Supervisor, ["nghttp2.org", [name: NgHTTP]])
+    DynamicSupervisor.start_child(River.ConnectionSupervisor, ["http2.golang.org", [name: GoogleConn]])
+    DynamicSupervisor.start_child(River.ConnectionSupervisor, ["nghttp2.org", [name: NgHTTP]])
 
-    River.BaseConnection.get(GoogleConn, "/")
-    River.BaseConnection.get(NgHTTP, "/")
-    River.BaseConnection.get(GoogleConn, "/.well-known/h2interop/state")
-    River.BaseConnection.get(GoogleConn, "/")
+    # River.Connection.get(GoogleConn, "/")
+    River.Connection.get(NgHTTP, "/")
+    # River.Connection.get(GoogleConn, "/")
+    # :observer.start
 
     :timer.sleep(5_000)
   end

@@ -1,4 +1,4 @@
-defmodule River.BaseConnection do
+defmodule River.Connection do
   # defmodule Stream.Supervisor do
   #   alias Experimental.DynamicSupervisor
   #   use DynamicSupervisor
@@ -16,7 +16,8 @@ defmodule River.BaseConnection do
   # end
 
   require Bitwise
-  use Connection # the Connection behavior from the connection package
+  # the name is confusing, but this is an external behaviour
+  use Connection
 
   def start_link(host, opts \\ []) do
     IO.puts "the start link opts: #{inspect opts}"
@@ -97,9 +98,9 @@ defmodule River.BaseConnection do
     stream_id = stream_id + 2
 
     f = River.Frame.encode(headers, stream_id, 0x1, Bitwise.|||(0x4, 0x1))
-    IO.puts "the headers (stream ID - #{stream_id}): #{inspect headers}"
+    # IO.puts "the headers (stream ID - #{stream_id}): #{inspect headers}"
 
-    IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
+    # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
     {:noreply, %{state | encode_ctx: ctx, stream_id: stream_id} }

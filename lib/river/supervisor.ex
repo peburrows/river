@@ -1,15 +1,15 @@
 defmodule River.Supervisor do
-  alias Experimental.DynamicSupervisor
-  use DynamicSupervisor
+  use Supervisor
 
   def start_link do
-    DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__)
+    Supervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
 
   def init(_) do
     children = [
-      worker(River.BaseConnection, [])
+      supervisor(River.ConnectionSupervisor, []),
+      supervisor(River.StreamSupervisor, [])
     ]
-    {:ok, children, strategy: :one_for_one}
+    supervise(children, strategy: :one_for_one)
   end
 end

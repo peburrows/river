@@ -46,7 +46,7 @@ defmodule River.Frame do
                              stream_id: stream_id,
                              payload:   payload
                             }
-        IO.puts "the frame: #{inspect frame}"
+        # IO.puts "the frame: #{inspect frame}"
         decode_frames(tail, ctx, [frame|frames])
       tail ->
         # be sure we include the frames we were able to extract, though
