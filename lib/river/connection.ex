@@ -20,13 +20,27 @@ defmodule River.Connection do
   use Connection
   alias Experimental.DynamicSupervisor
 
+
+  def create(host, opts \\ []) do
+    name = Keyword.get(opts, :name, :"conn-#{host}")
+
+    DynamicSupervisor.start_child(
+      River.ConnectionSupervisor,
+      [host, [name: name]]
+    )
+  end
+
   def start_link(host, opts \\ []) do
-    IO.puts "the start link opts: #{inspect opts}"
-    Connection.start_link(__MODULE__, [host: host], opts)
+    # IO.puts "the start link opts: #{inspect opts}"
+    case Connection.start_link(__MODULE__, [host: host], opts) do
+      {:ok, pid} ->
+        {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        {:ok, pid}
+    end
   end
 
   def init([host: host]) do
-    IO.puts "calling init!"
     state = %{
         stream_id: 1,
         host:      host,
@@ -44,8 +58,6 @@ defmodule River.Connection do
   end
 
   def connect(info, %{host: host}=state) do
-    IO.puts "info to connect: #{inspect info}"
-    IO.puts "we are connecting - #{inspect host}"
     host = String.to_charlist(host)
     verify_fun = {(&:ssl_verify_hostname.verify_fun/3), [{:check_hostname, host}]}
     certs = :certifi.cacerts()
@@ -60,7 +72,6 @@ defmodule River.Connection do
       {:verify_fun, verify_fun}
     ]
 
-    IO.puts ""
     case :ssl.connect(host, 443, opts) do
       {:ok, socket} ->
         River.Frame.http2_header
@@ -125,7 +136,7 @@ defmodule River.Connection do
 
     for f <- frames do
       IO.puts "adding this frame: #{inspect f}"
-      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"#{host}-#{f.stream_id}"]])
+      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
 
       River.Stream.add_frame(pid, f)
       IO.puts "the response as of now: #{inspect River.Stream.get_response(pid)}"

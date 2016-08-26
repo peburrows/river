@@ -84,12 +84,12 @@ defmodule RiverTest do
 
   test "doing things via the genserver" do
     alias Experimental.DynamicSupervisor
-    DynamicSupervisor.start_child(River.ConnectionSupervisor, ["http2.golang.org", [name: GoogleConn]])
-    DynamicSupervisor.start_child(River.ConnectionSupervisor, ["nghttp2.org", [name: NgHTTP]])
+    {:ok, golang} = River.Connection.create("http2.golang.org")
+    {:ok, nghttp} = River.Connection.create("nghttp2.org")
 
-    River.Connection.get(GoogleConn, "/")
-    River.Connection.get(NgHTTP, "/")
-    River.Connection.get(GoogleConn, "/")
+    River.Connection.get(golang, "/")
+    River.Connection.get(nghttp, "/")
+    River.Connection.get(golang, "/")
     :observer.start
 
     :timer.sleep(:infinity)
