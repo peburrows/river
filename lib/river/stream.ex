@@ -37,4 +37,10 @@ defmodule River.Stream do
                    headers: Enum.reverse(response.headers)}
     end)
   end
+
+  # kind of useless, but it prevents us from spreading
+  # implementation logic outside of this module
+  def close(pid) do
+    Agent.stop(pid)
+  end
 end

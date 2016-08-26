@@ -87,11 +87,11 @@ defmodule RiverTest do
     DynamicSupervisor.start_child(River.ConnectionSupervisor, ["http2.golang.org", [name: GoogleConn]])
     DynamicSupervisor.start_child(River.ConnectionSupervisor, ["nghttp2.org", [name: NgHTTP]])
 
-    # River.Connection.get(GoogleConn, "/")
+    River.Connection.get(GoogleConn, "/")
     River.Connection.get(NgHTTP, "/")
-    # River.Connection.get(GoogleConn, "/")
-    # :observer.start
+    River.Connection.get(GoogleConn, "/")
+    :observer.start
 
-    :timer.sleep(5_000)
+    :timer.sleep(:infinity)
   end
 end

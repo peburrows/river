@@ -8,7 +8,7 @@ defmodule River.StreamSupervisor do
 
   def init(_) do
     children = [
-      worker(River.Stream, [])
+      worker(River.Stream, [], restart: :transient)
     ]
     {:ok, children, strategy: :one_for_one}
   end

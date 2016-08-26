@@ -8,7 +8,7 @@ defmodule River.ConnectionSupervisor do
 
   def init(_) do
     children = [
-      worker(River.Connection, [])
+      worker(River.Connection, [], restart: :transient)
     ]
     {:ok, children, strategy: :one_for_one}
   end

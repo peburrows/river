@@ -18,6 +18,7 @@ defmodule River.Connection do
   require Bitwise
   # the name is confusing, but this is an external behaviour
   use Connection
+  alias Experimental.DynamicSupervisor
 
   def start_link(host, opts \\ []) do
     IO.puts "the start link opts: #{inspect opts}"
@@ -124,7 +125,8 @@ defmodule River.Connection do
 
     for f <- frames do
       IO.puts "adding this frame: #{inspect f}"
-      {:ok, pid} = River.Stream.start_link(name: :"#{host}-#{f.stream_id}")
+      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"#{host}-#{f.stream_id}"]])
+
       River.Stream.add_frame(pid, f)
       IO.puts "the response as of now: #{inspect River.Stream.get_response(pid)}"
     end
