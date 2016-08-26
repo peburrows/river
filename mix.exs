@@ -3,8 +3,10 @@ defmodule River.Mixfile do
 
   def project do
     [app: :river,
-     version: "0.0.1",
+     version: "0.0.1-beta",
      elixir: "~> 1.3",
+     description: description,
+     package: package,
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps]
@@ -25,7 +27,24 @@ defmodule River.Mixfile do
       {:gen_state_machine, "~> 1.0.2"},
       {:hackney, path: "../hackney"},
       {:connection, "~> 1.0.4"},
-      {:certifi, "~> 0.4.0"}
+      {:certifi, "~> 0.4.0"},
+      {:ex_doc, "~> 0.13.0", only: :dev},
+      {:earmark, "~> 1.0", only: :dev},
+    ]
+  end
+
+  defp description do
+    """
+    River is an http/2 (HTTP2) client for Elixir (a work in progress, though!)
+    """
+  end
+
+  defp package do
+    [
+      name: :river,
+      maintainers: ["Phil Burrows"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/peburrows/river"}
     ]
   end
 end
