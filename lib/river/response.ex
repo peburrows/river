@@ -52,8 +52,15 @@ defmodule River.Response do
     |> add_headers(tail)
   end
 
-  defp handle_flags(response, %Frame{}=frame) do
-    case Flags.has_flag?(frame, 0x1) do
+  defp handle_flags(response, %Frame{flags: flags}) when is_list(flags) do
+    case Flags.has_flag?(flags, :END_STREAM) do
+      true -> %{response | closed: true}
+      _ -> response
+    end
+  end
+
+  defp handle_flags(response, %Frame{flags: flags}) do
+    case Flags.has_flag?(flags, 0x1) do
       true -> %{response | closed: true}
       _ -> response
     end

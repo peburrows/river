@@ -29,4 +29,10 @@ defmodule River.ResponseTest do
       content_type: "text/html"
     } = Response.add_frame(%Response{}, %Frame{type: @headers, payload: [{"content-type", "text/html"}]})
   end
+
+  test "add a frame with a :END_STREAM flag should close the response" do
+    assert %Response{
+      closed: true
+    } = Response.add_frame(%Response{}, %Frame{flags: [:END_STREAM]})
+  end
 end
