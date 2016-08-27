@@ -3,7 +3,7 @@ defmodule River.FlagsTest do
   use River.FrameTypes
   require Bitwise
 
-  alias River.Flags
+  alias River.{Flags, Frame}
 
   test "extracting the ACK flag from a settings frame" do
     assert [:ACK] == Flags.flags(@settings, 0x1)
@@ -28,5 +28,24 @@ defmodule River.FlagsTest do
 
   test "extracting flags from goaway frame" do
     assert [] == Flags.flags(@goaway, 0x1)
+  end
+
+  describe "Flags.has_flag?" do
+    test "returns the correct value when checking raw flag" do
+      assert true  == Flags.has_flag?(0x5, 0x1)
+      assert true  == Flags.has_flag?(0x5, 0x4)
+      assert false == Flags.has_flag?(0x1, 0x4)
+    end
+
+    test "returns the correct value when checking a list of parsed flags" do
+      assert true  == Flags.has_flag?([:END_STREAM], :END_STREAM)
+      assert true  == Flags.has_flag?([:END_HEADERS], :END_HEADERS)
+      assert false == Flags.has_flag?([:END_STREAM], :NOPE)
+    end
+
+    test "returns the correct value when checking a frame for flags" do
+      assert true  == Flags.has_flag?(%Frame{flags: [:END_STREAM]}, :END_STREAM)
+      assert true  == Flags.has_flag?(%Frame{flags: 0x5}, 0x1)
+    end
   end
 end
