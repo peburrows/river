@@ -42,19 +42,35 @@ defmodule River.Connection do
 
   def init([host: host]) do
     state = %{
-        stream_id: 1,
-        host:      host,
-        socket:    nil, # nil so we can set the socket in connect
-        widow:     "",
-        encode_ctx: HPACK.Context.new(%{max_size: 4096}),
-        decode_ctx: HPACK.Context.new(%{max_size: 4096}),
-     }
+      # this is kind of hacky, we should handle stream ids a little better
+      stream_id: 1,
+      host:      host,
+      socket:    nil, # nil so we can set the socket in connect
+      widow:     "",
+      pids:      %{},
+      encode_ctx: HPACK.Context.new(%{max_size: 4096}),
+      decode_ctx: HPACK.Context.new(%{max_size: 4096}),
+    }
 
     {:connect, :init, state}
   end
 
+  # def get(pid, path) do
+  #   Connection.cast(pid, {:get, path})
+  # end
+
   def get(pid, path) do
-    Connection.cast(pid, {:get, path})
+    Connection.cast(pid, {:get, path, self})
+    receive do
+      {:ok, response} ->
+        {:ok, response}
+      other ->
+        IO.puts "we got a different message from someone: #{inspect other}"
+        other
+    after 5_000 -> # eventually, we need to customize the timeout
+      IO.puts "well, we got nothing after 5 seconds"
+      {:error, :timeout}
+    end
   end
 
   def connect(info, %{host: host}=state) do
@@ -93,9 +109,16 @@ defmodule River.Connection do
     end
   end
 
-  # when we make a request, we need to spin up a new GenServer to handle this stream
-  def handle_cast({:get, path}, state) do
-    %{socket: socket, host: host, stream_id: stream_id, encode_ctx: ctx} = state
+  def handle_cast({:get, path}, state), do: handle_cast({:get, path, nil}, state)
+  def handle_cast({:get, path, parent}, state) do
+    %{
+      socket: socket,
+      host: host,
+      stream_id: stream_id,
+      encode_ctx: ctx,
+      pids: pids
+    } = state
+
     :ssl.setopts(socket, [active: true])
 
     {headers, ctx} = HPACK.encode([
@@ -110,12 +133,11 @@ defmodule River.Connection do
     stream_id = stream_id + 2
 
     f = River.Frame.encode(headers, stream_id, 0x1, Bitwise.|||(0x4, 0x1))
-    # IO.puts "the headers (stream ID - #{stream_id}): #{inspect headers}"
 
     # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | encode_ctx: ctx, stream_id: stream_id} }
+    {:noreply, %{state | encode_ctx: ctx, stream_id: stream_id, pids: Map.put(pids, stream_id, parent)} }
   end
 
   def handle_info({:ssl, _, payload} = msg, state) do
@@ -123,7 +145,8 @@ defmodule River.Connection do
       decode_ctx: ctx,
       socket:     socket,
       widow:      prev,
-      host:       host
+      host:       host,
+      pids:       pids
     } = state
 
     {new_state, frames} =
@@ -136,10 +159,10 @@ defmodule River.Connection do
 
     for f <- frames do
       IO.puts "adding this frame: #{inspect f}"
-      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
+      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"], Map.get(pids, f.stream_id)])
 
-      River.Stream.add_frame(pid, f)
-      IO.puts "the response as of now: #{inspect River.Stream.get_response(pid)}"
+      River.StreamHandler.add_frame(pid, f)
+      IO.puts "the response as of now: #{inspect River.StreamHandler.get_response(pid)}"
     end
 
     {:noreply, new_state}

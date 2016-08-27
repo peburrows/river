@@ -44,7 +44,7 @@ defmodule River.Frame do
                              type:      type,
                              flags:     River.Flags.flags(type, flags),
                              stream_id: stream_id,
-                             payload:   payload
+                             payload:   decode_payload(type, payload, ctx)
                             }
         # IO.puts "the frame: #{inspect frame}"
         decode_frames(tail, ctx, [frame|frames])

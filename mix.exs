@@ -30,6 +30,8 @@ defmodule River.Mixfile do
       {:certifi, "~> 0.4.0"},
       {:ex_doc, "~> 0.13.0", only: :dev},
       {:earmark, "~> 1.0", only: :dev},
+      {:mix_test_watch, "~> 0.2", only: [:test, :dev]},
+      {:credo, "~> 0.4", only: [:test, :dev]}
     ]
   end
 
