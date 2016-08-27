@@ -40,7 +40,7 @@ defmodule River.Frame do
 
   def decode_frames(data, ctx, frames \\ [])
   def decode_frames(<<>>, ctx, frames) do
-    {:ok, Enum.reverse(frames), ctx}
+    {:ok, Enum.reverse(frames)}
   end
 
   # I wonder if decode should work something more like this:
@@ -57,30 +57,30 @@ defmodule River.Frame do
         decode_frames(tail, ctx, [frame|frames])
       tail ->
         # be sure we include the frames we were able to extract, though
-        {:error, :incomplete_frame, frames, tail, ctx}
+        {:error, :incomplete_frame, frames, tail}
     end
   end
 
   def decode_payload(@headers, payload, ctx),
-    do: HPACK.decode(payload, ctx)
+    do: HPack.decode(payload, ctx)
 
   # we have encountered an issue with a certain PUSH_PROMISE packet
   # coming from nghttp2.org
-  def decode_payload(@push_promise, payload, ctx),
+  def decode_payload(@push_promise, payload, _ctx),
     # do: HPACK.decode(payload, ctx)
-    do: {payload, ctx}
+    do: payload
 
-  def decode_payload(@data, payload, ctx), do: {payload, ctx}
-  def decode_payload(@rst_stream, payload, ctx), do: {payload, ctx}
+  def decode_payload(@data, payload, _ctx), do: payload
+  def decode_payload(@rst_stream, payload, _ctx), do: payload
 
-  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, ctx) do
+  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, _ctx) do
     IO.puts "goaway because of stream: #{sid} -- #{error}"
-    {error, ctx}
+    {:error, error}
   end
 
   # settings frame
-  def decode_payload(@settings, payload, ctx) do
-    River.Frame.Settings.decode(payload, ctx)
+  def decode_payload(@settings, payload, _ctx) do
+    River.Frame.Settings.decode(payload)
   end
 
   defp frame_type(@settings),     do: :SETTINGS

@@ -15,7 +15,7 @@ defmodule River.Mixfile do
   def application do
     [
       mod: {River, []},
-      applications: [:logger, :gen_stage, :http2, :ssl]
+      applications: [:logger, :gen_stage, :ssl]
     ]
   end
 
