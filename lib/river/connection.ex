@@ -41,6 +41,8 @@ defmodule River.Connection do
   end
 
   def init([host: host]) do
+    {:ok, encode_ctx} = HPack.Table.start_link(4096)
+    {:ok, decode_ctx} = HPack.Table.start_link(4096)
     state = %{
       # this is kind of hacky, we should handle stream ids a little better
       stream_id: 1,
@@ -48,8 +50,8 @@ defmodule River.Connection do
       socket:    nil, # nil so we can set the socket in connect
       widow:     "",
       pids:      %{},
-      encode_ctx: HPACK.Context.new(%{max_size: 4096}),
-      decode_ctx: HPACK.Context.new(%{max_size: 4096}),
+      encode_ctx: encode_ctx,
+      decode_ctx: decode_ctx,
     }
 
     {:connect, :init, state}
@@ -121,7 +123,8 @@ defmodule River.Connection do
 
     :ssl.setopts(socket, [active: true])
 
-    {headers, ctx} = HPACK.encode([
+    # {headers, ctx} = HPACK.encode([
+    headers = HPack.encode([
       {":method", "GET"},
       {":scheme", "https"},
       {":path", path},
@@ -137,7 +140,7 @@ defmodule River.Connection do
     # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | encode_ctx: ctx, stream_id: stream_id, pids: Map.put(pids, stream_id, parent)} }
+    {:noreply, %{state | stream_id: stream_id, pids: Map.put(pids, stream_id, parent)} }
   end
 
   def handle_info({:ssl, _, payload} = msg, state) do
@@ -151,10 +154,10 @@ defmodule River.Connection do
 
     {new_state, frames} =
       case River.Frame.decode_frames(prev <> payload, ctx) do
-        {:ok, frames, ctx} ->
-          {%{state | decode_ctx: ctx}, frames}
-        {:error, :incomplete_frame, frames, widow, ctx} ->
-          {%{state | decode_ctx: ctx, widow: widow}, frames}
+        {:ok, frames} ->
+          {state, frames}
+        {:error, :incomplete_frame, frames, widow} ->
+          {%{state | widow: widow}, frames}
       end
 
     for f <- frames do

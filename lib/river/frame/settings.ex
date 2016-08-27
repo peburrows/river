@@ -14,10 +14,10 @@ defmodule River.Frame.Settings do
     encode_payload(tail, (acc <> <<setting(name)::16, value::32>>))
   end
 
-  def decode(payload, ctx),    do: decode(payload, ctx, [])
-  defp decode(<<>>, ctx, acc), do: {acc, ctx}
-  defp decode(<<id::16, value::32, rest::binary>>, ctx, acc) do
-    decode(rest, ctx, [{name(id), value} | acc])
+  def decode(payload),    do: decode(payload, [])
+  defp decode(<<>>, acc), do: acc
+  defp decode(<<id::16, value::32, rest::binary>>, acc) do
+    decode(rest, [{name(id), value} | acc])
   end
 
   defp name(0x1), do: :HEADER_TABLE_SIZE

@@ -7,8 +7,8 @@ defmodule River.FrameTest do
            <<0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a::192>>
   end
 
-  test "decoding an empty frame returns the context and no frames" do
-    assert {:ok, [], :ctx} = Frame.decode_frames(<<>>, :ctx)
+  test "decoding an empty frame returns {:ok, []}" do
+    assert {:ok, []} = Frame.decode_frames(<<>>, :ctx)
   end
 
   test "decoding a single frame returns a single frame" do
@@ -19,8 +19,8 @@ defmodule River.FrameTest do
                 type:   0x4,
                 flags: [:ACK],
                 stream_id: 15,
-                payload: ""
-             }],
-            _} = Frame.decode_frames(data, :ctx)
+                payload: []
+             }]
+           } = Frame.decode_frames(data, :ctx)
   end
 end
