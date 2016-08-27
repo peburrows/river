@@ -13,7 +13,15 @@ defmodule River.StreamHandler do
 
   def add_frame(pid, %Frame{}=frame) do
     Agent.cast(pid, fn({cpid, response}) ->
-      {cpid, Response.add_frame(response, frame)}
+      case Response.add_frame(response, frame) do
+        %Response{closed: true}=r ->
+          send(cpid, {:ok, r})
+          {cpid, r}
+        r ->
+          {cpid, r}
+      end
+
+      # {cpid, Response.add_frame(response, frame)}
     end)
   end
 

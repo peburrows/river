@@ -2,7 +2,14 @@ defmodule River.Frame do
   require Bitwise
   use River.FrameTypes
 
-  defstruct [:payload, :stream_id, :type, :flags, :length]
+  # defstruct [:payload, :stream_id, :type, :flags, :length]
+  defstruct [
+    payload: <<>>,
+    stream_id: nil,
+    type: nil,
+    flags: [],
+    length: 0
+  ]
 
   defimpl Inspect, for: River.Frame do
     def inspect(frame, opts) do
