@@ -34,13 +34,6 @@ defmodule River.StreamHandler do
     end)
   end
 
-  # check to see if this is the end of the stream
-  # if it is, we need to notify the cpid and close this
-  # stream handler
-  defp end_stream?(frame) do
-    Enum.any?(frame.flags, :END_STREAM)
-  end
-
   # kind of useless, but it prevents us from spreading
   # implementation logic outside of this module
   def close(pid) do

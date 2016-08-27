@@ -1,23 +1,7 @@
 defmodule River.Connection do
-  # defmodule Stream.Supervisor do
-  #   alias Experimental.DynamicSupervisor
-  #   use DynamicSupervisor
-
-  #   def start_link(opts) do
-  #     DynamicSupervisor.start_link(__MODULE__, [], opts)
-  #   end
-
-  #   def init() do
-  #     children = [
-  #       worker(River.StreamHandler, [])
-  #     ]
-  #     {:ok, children, strategy: :one_for_one}
-  #   end
-  # end
-
-  require Bitwise
   # the name is confusing, but this is an external behaviour
   use Connection
+  use Bitwise
   alias Experimental.DynamicSupervisor
 
 
@@ -49,17 +33,12 @@ defmodule River.Connection do
       host:      host,
       socket:    nil, # nil so we can set the socket in connect
       widow:     "",
-      pids:      %{},
       encode_ctx: encode_ctx,
       decode_ctx: decode_ctx,
     }
 
     {:connect, :init, state}
   end
-
-  # def get(pid, path) do
-  #   Connection.cast(pid, {:get, path})
-  # end
 
   def get(pid, path) do
     Connection.cast(pid, {:get, path, self})
@@ -101,7 +80,7 @@ defmodule River.Connection do
           # ENABLE_PUSH: 0
         ], 0)
 
-        IO.puts "#{IO.ANSI.green_background}#{Base.encode16(frame, case: :lower)}#{IO.ANSI.reset}"
+        # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(frame, case: :lower)}#{IO.ANSI.reset}"
 
         :ssl.send(socket, frame)
         {:ok, %{state | socket: socket}}
@@ -113,17 +92,22 @@ defmodule River.Connection do
 
   def handle_cast({:get, path}, state), do: handle_cast({:get, path, nil}, state)
   def handle_cast({:get, path, parent}, state) do
+    # the problem here might be that this call will block until it fires
+    # off the request, which is less than ideal. What we should do here is
+    # spin up a RequestHandler of some sort to trigger it and handle things
     %{
       socket: socket,
       host: host,
       stream_id: stream_id,
       encode_ctx: ctx,
-      pids: pids
     } = state
+
+    stream_id = stream_id + 2
+
+    {:ok, _handler_pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
 
     :ssl.setopts(socket, [active: true])
 
-    # {headers, ctx} = HPACK.encode([
     headers = HPack.encode([
       {":method", "GET"},
       {":scheme", "https"},
@@ -133,14 +117,13 @@ defmodule River.Connection do
       {"user-agent", "River/0.0.1"}
     ], ctx)
 
-    stream_id = stream_id + 2
 
-    f = River.Frame.encode(headers, stream_id, 0x1, Bitwise.|||(0x4, 0x1))
+    f = River.Frame.encode(headers, stream_id, 0x1, (0x4 ||| 0x1))
 
     # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | stream_id: stream_id, pids: Map.put(pids, stream_id, parent)} }
+    {:noreply, %{state | stream_id: stream_id } }
   end
 
   def handle_info({:ssl, _, payload} = msg, state) do
@@ -149,7 +132,6 @@ defmodule River.Connection do
       socket:     socket,
       widow:      prev,
       host:       host,
-      pids:       pids
     } = state
 
     {new_state, frames} =
@@ -161,11 +143,11 @@ defmodule River.Connection do
       end
 
     for f <- frames do
-      IO.puts "adding this frame: #{inspect f}"
-      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"], Map.get(pids, f.stream_id)])
+      # IO.puts "adding this frame: #{inspect f}"
+      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
 
       River.StreamHandler.add_frame(pid, f)
-      IO.puts "the response as of now: #{inspect River.StreamHandler.get_response(pid)}"
+      # IO.puts "the response as of now: #{inspect River.StreamHandler.get_response(pid)}"
     end
 
     {:noreply, new_state}

@@ -82,16 +82,18 @@ defmodule RiverTest do
       "hello">> = River.Frame.encode("hello", sid, 0x4)
   end
 
-  # test "doing things via the genserver" do
-  #   alias Experimental.DynamicSupervisor
-  #   {:ok, golang} = River.Connection.create("http2.golang.org")
-  #   {:ok, nghttp} = River.Connection.create("nghttp2.org")
+  test "doing things via the genserver" do
+    alias Experimental.DynamicSupervisor
+    {:ok, golang} = River.Connection.create("http2.golang.org")
+    {:ok, nghttp} = River.Connection.create("nghttp2.org")
 
-  #   River.Connection.get(golang, "/")
-  #   River.Connection.get(nghttp, "/")
-  #   River.Connection.get(golang, "/")
-  #   :observer.start
+    assert {:ok, %River.Response{code: 200}} = River.Connection.get(golang, "/")
+    assert {:ok, %River.Response{code: 200}} = River.Connection.get(nghttp, "/")
+    assert {:ok, %River.Response{code: 200}} = River.Connection.get(golang, "/.well-known/h2interop/state")
+    # IO.puts "the google return: #{inspect ret}"
+    # River.Connection.get(golang, "/")
+    # :observer.start
 
-  #   :timer.sleep(:infinity)
-  # end
+    # :timer.sleep(:infinity)
+  end
 end
