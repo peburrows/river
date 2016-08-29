@@ -40,7 +40,7 @@ defmodule River.Connection do
     {:connect, :init, state}
   end
 
-  def get(pid, path) do
+  def get(pid, path, timeout \\ 5_000) do
     Connection.cast(pid, {:get, path, self})
     receive do
       {:ok, response} ->
@@ -48,8 +48,8 @@ defmodule River.Connection do
       other ->
         IO.puts "we got a different message from someone: #{inspect other}"
         other
-    after 5_000 -> # eventually, we need to customize the timeout
-      IO.puts "well, we got nothing after 5 seconds"
+    after timeout -> # eventually, we need to customize the timeout
+      IO.puts "well, we got nothing after #{timeout}ms"
       {:error, :timeout}
     end
   end

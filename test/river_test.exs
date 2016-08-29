@@ -87,11 +87,16 @@ defmodule RiverTest do
     {:ok, golang} = River.Connection.create("http2.golang.org")
     {:ok, nghttp} = River.Connection.create("nghttp2.org")
 
-    assert {:ok, %River.Response{code: 200}} = River.Connection.get(golang, "/")
-    assert {:ok, %River.Response{code: 200}} = River.Connection.get(nghttp, "/")
-    assert {:ok, %River.Response{code: 200}} = River.Connection.get(golang, "/.well-known/h2interop/state")
-    # IO.puts "the google return: #{inspect ret}"
-    # River.Connection.get(golang, "/")
+    assert {:ok, %River.Response{code: 200}=g_resp} = River.Connection.get(golang, "/")
+    assert {:ok, %River.Response{code: 200}=ng_resp} = River.Connection.get(nghttp, "/")
+    assert {:ok, %River.Response{code: 200}=g2_resp} = River.Connection.get(golang, "/.well-known/h2interop/state")
+    IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
+    IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
+    IO.puts "\nthe response: #{g2_resp.code}, #{g2_resp.content_type} ::  #{inspect g2_resp.body}"
+
+
+    assert {:error, :timeout} = River.Connection.get(golang, "/", 0)
+
     # :observer.start
 
     # :timer.sleep(:infinity)

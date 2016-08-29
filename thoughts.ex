@@ -1,11 +1,12 @@
-River.get(host)
+{:ok, response} = River.get("/", [{"X-My-API-Key", "abc123"}])
 
-# in the River:
-{:ok, pid} = River.Connection.create(host)
-River.get(pid, "/")
+{:ok, response} = River.post("/", "data:goes:here", [{"my-header", "my-header-val"}])
 
-# which spins up a connection and then sits in a receive block until
-# the stream in the connection that the request was issued on returns a message
-# or until a timeout. The stream will message the caller in one of two ways:
-# 1) when the :END_STREAM flag is sent from the connection
-# 2) if the caller asks for the response to be streamed, it will notify the caller on each frame (sending maybe all frames, or maybe only DATA frames)
+{:ok, pid} = River.stream(:get, "/", fn(frame)->
+  # each one of these is a frame, and you're expected to handle it accordingly
+  case frame do
+    %River.Frame{type: @data}    -> :data
+    %River.Frame{type: @headers} -> :header
+    _                            -> :ignore
+  end
+end)
