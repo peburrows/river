@@ -64,6 +64,9 @@ defmodule River.Frame do
   def decode_payload(@headers, payload, ctx),
     do: HPack.decode(payload, ctx)
 
+  def decode_payload(@continuation, payload, ctx),
+    do: HPack.decode(payload, ctx)
+
   # we have encountered an issue with a certain PUSH_PROMISE packet
   # coming from nghttp2.org
   def decode_payload(@push_promise, payload, _ctx),

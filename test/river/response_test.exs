@@ -18,6 +18,14 @@ defmodule River.ResponseTest do
     } = Response.add_frame(%Response{}, %Frame{type: @headers, payload: headers})
   end
 
+  test "adding a continuation frame adds the headers to the header list" do
+    headers = [{"random", "value"}]
+    assert %Response{
+      headers: ^headers,
+      frames:  [%Frame{type: @continuation, payload: ^headers}]
+    } = Response.add_frame(%Response{}, %Frame{type: @continuation, payload: headers})
+  end
+
   test "adding a headers frame with a status code sets the status" do
     assert %Response{
       code: 200

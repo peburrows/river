@@ -73,26 +73,18 @@ end
 defmodule RiverTest do
   use ExUnit.Case
   doctest River
-  test "encoding a simple frame" do
-    sid = 123
-    assert <<5::size(24),
-      0x4::size(8),
-      _flags::size(8),
-      0::size(1), ^sid::size(31),
-      "hello">> = River.Frame.encode("hello", sid, 0x4)
-  end
 
   test "doing things via the genserver" do
     alias Experimental.DynamicSupervisor
     {:ok, golang} = River.Connection.create("http2.golang.org")
     {:ok, nghttp} = River.Connection.create("nghttp2.org")
 
-    assert {:ok, %River.Response{code: 200}=g_resp} = River.Connection.get(golang, "/")
-    assert {:ok, %River.Response{code: 200}=ng_resp} = River.Connection.get(nghttp, "/")
-    assert {:ok, %River.Response{code: 200}=g2_resp} = River.Connection.get(golang, "/.well-known/h2interop/state")
-    IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
-    IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
-    IO.puts "\nthe response: #{g2_resp.code}, #{g2_resp.content_type} ::  #{inspect g2_resp.body}"
+    # assert {:ok, %River.Response{code: 200}=g_resp}  = River.Connection.get(golang, "/")
+    # assert {:ok, %River.Response{code: 200}=ng_resp} = River.Connection.get(nghttp, "/")
+    # assert {:ok, %River.Response{code: 200}=g2_resp} = River.Connection.get(golang, "/.well-known/h2interop/state")
+    # IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
+    # IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
+    # IO.puts "\nthe response: #{g2_resp.code}, #{g2_resp.content_type} ::  #{inspect g2_resp.body}"
 
 
     assert {:error, :timeout} = River.Connection.get(golang, "/", 0)

@@ -1,8 +1,8 @@
-{:ok, response} = River.get("/", [{"X-My-API-Key", "abc123"}])
+{:ok, response} = River.get("https://http2.golang.org/", [{"X-My-API-Key", "abc123"}])
 
-{:ok, response} = River.post("/", "data:goes:here", [{"my-header", "my-header-val"}])
+{:ok, response} = River.post("https://http2.golang.org/", "data:goes:here", [{"my-header", "my-header-val"}])
 
-{:ok, pid} = River.stream(:get, "/", fn(frame)->
+{:ok, pid} = River.stream(:get, "https://http2.golang.org/", fn(frame)->
   # each one of these is a frame, and you're expected to handle it accordingly
   case frame do
     %River.Frame{type: @data}    -> :data

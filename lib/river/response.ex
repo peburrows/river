@@ -24,6 +24,12 @@ defmodule River.Response do
     |> handle_flags(frame)
   end
 
+  def add_frame(%__MODULE__{}=response, %Frame{type: @continuation}=frame) do
+    %{response | frames: [frame|response.frames]}
+    |> add_headers(frame.payload)
+    |> handle_flags(frame)
+  end
+
   def add_frame(%__MODULE__{}=response, %Frame{}=frame) do
     %{response | frames: [frame|response.frames]}
     |> handle_flags(frame)
