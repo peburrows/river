@@ -74,11 +74,11 @@ defmodule River.Frame do
     do: payload
 
   def decode_payload(@data, payload, _ctx), do: payload
-  def decode_payload(@rst_stream, payload, _ctx), do: payload
+  def decode_payload(@rst_stream, payload, _ctx), do: {:error, :rst_stream, payload}
 
   def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, _ctx) do
     IO.puts "goaway because of stream: #{sid} -- #{error}"
-    {:error, error}
+    {:error, :goaway, error}
   end
 
   # settings frame

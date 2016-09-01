@@ -21,7 +21,21 @@ defmodule River.StreamHandlerTest do
   test "getting a frame with an :END_STREAM flag causes the handler to send a message" do
     {:ok, pid} = StreamHandler.start_link([], self)
     StreamHandler.add_frame(pid, %Frame{type: @data, flags: 0x1})
+    assert_receive {:ok, %Response{closed: true}}
+  end
 
-    assert_receive {:ok, %Response{}}
+  test "getting a frame with an :END_STREAM flag causes the stream handler to stop itself" do
+    {:ok, pid} = StreamHandler.start_link([], self)
+    StreamHandler.add_frame(pid, %Frame{type: @data, flags: 0x1})
+    :timer.sleep(10)
+    refute Process.alive?(pid)
+  end
+
+  test "getting a RST_STREAM frame causes the handler to send the error pack and stop itself" do
+    {:ok, pid} = StreamHandler.start_link([], self)
+    StreamHandler.add_frame(pid, %Frame{type: @rst_stream, payload: <<401::32>>})
+    assert_receive {:error, %Response{closed: true, code: 401}}
+    :timer.sleep(10)
+    refute Process.alive?(pid)
   end
 end

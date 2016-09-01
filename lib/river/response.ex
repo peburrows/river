@@ -5,6 +5,7 @@ defmodule River.Response do
   defstruct [
     code:         nil,
     content_type: nil,
+    __status:     :ok,
     closed:       false,
     headers:      [],
     frames:       [],
@@ -28,6 +29,14 @@ defmodule River.Response do
     %{response | frames: [frame|response.frames]}
     |> add_headers(frame.payload)
     |> handle_flags(frame)
+  end
+
+  def add_frame(%__MODULE__{}=response, %Frame{type: @rst_stream, payload: code}=frame) do
+    %{response |
+      frames: [frame|response.frames],
+      closed: true, __status: :error,
+      code:   String.to_integer(code, 10)
+    } |> handle_flags(frame)
   end
 
   def add_frame(%__MODULE__{}=response, %Frame{}=frame) do

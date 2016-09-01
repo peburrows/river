@@ -14,11 +14,11 @@ defmodule River.StreamHandler do
   def add_frame(pid, %Frame{}=frame) do
     Agent.cast(pid, fn({cpid, response}) ->
       case Response.add_frame(response, frame) do
+        %Response{closed: true, __status: :error}=r ->
+          message_and_close(pid, cpid, {:error, r})
+          {cpid, r}
         %Response{closed: true}=r ->
-          case cpid do
-            nil -> nil
-            c   -> send(c, {:ok, r})
-          end
+          message_and_close(pid, cpid, {:ok, r})
           {cpid, r}
         r ->
           {cpid, r}
@@ -36,7 +36,21 @@ defmodule River.StreamHandler do
 
   # kind of useless, but it prevents us from spreading
   # implementation logic outside of this module
-  def close(pid) do
+  def stop(pid) do
     Agent.stop(pid)
+  end
+
+  defp message_and_close(pid, cpid, what) do
+    case cpid do
+      nil -> nil
+      c   -> send(c, what)
+    end
+
+    # I don't really know the best way to clean up after ourselves here
+    # I need to send a response to the concerned pid, and then stop myself
+    # maybe these should be handled with cast calls...?
+    spawn(fn()->
+      River.StreamHandler.stop(pid)
+    end)
   end
 end

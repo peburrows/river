@@ -10,3 +10,17 @@
     _                            -> :ignore
   end
 end)
+
+"""
+How do we handle the frames that require a response?
+PING frames, for instance, require a response
+SETTINGS frames also require a response, and require
+us to update our internal state.
+"""
+
+"""
+connection
+ \- streamHandler
+ \- streamHandler
+ \- streamHandler
+"""
