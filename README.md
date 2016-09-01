@@ -30,7 +30,7 @@ River is a general-purpose HTTP client with eventual hopes of full HTTP/2 suppor
 
 ## Goals
 
-[x] Basic HTTP/2 support
-[ ] HTTP/1 --> HTTP/2 upgrading
-[ ] Full HTTP/2 support
-[ ] Full HTTP/1.x support
+- [x] Basic HTTP/2 support
+- [ ] HTTP/1 --> HTTP/2 upgrading
+- [ ] Full HTTP/2 support
+- [ ] Full HTTP/1.x support
