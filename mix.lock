@@ -8,7 +8,7 @@
   "gen_stage": {:hex, :gen_stage, "0.5.0", "758068f3a81286e342a609d668e9624714c2e4d43cc26699ead04d1680fde6c6", [:mix], []},
   "gen_state_machine": {:hex, :gen_state_machine, "1.0.2", "7fb11ec9e77b90cc9bcc095436a3786592fb243d80ed35c1279dd84153207962", [:mix], []},
   "hackney": {:hex, :hackney, "1.6.1", "ddd22d42db2b50e6a155439c8811b8f6df61a4395de10509714ad2751c6da817", [:rebar3], [{:certifi, "0.4.0", [hex: :certifi, optional: false]}, {:idna, "1.2.0", [hex: :idna, optional: false]}, {:metrics, "1.0.1", [hex: :metrics, optional: false]}, {:mimerl, "1.0.2", [hex: :mimerl, optional: false]}, {:ssl_verify_fun, "1.1.0", [hex: :ssl_verify_fun, optional: false]}]},
-  "hpack": {:hex, :hpack, "1.0.0", "1e2167e7ac7f41e9491782aec81b79671290d06f982409b008bfe43bf52be317", [:mix], []},
+  "hpack": {:hex, :hpack, "1.0.2", "94f6e7214e3184d2ab9670a22c80c80b46651a17e35fd02e5c3c4d2ce2466d02", [:mix], []},
   "idna": {:hex, :idna, "1.2.0", "ac62ee99da068f43c50dc69acf700e03a62a348360126260e87f2b54eced86b2", [:rebar3], []},
   "metrics": {:hex, :metrics, "1.0.1", "25f094dea2cda98213cecc3aeff09e940299d950904393b2a29d191c346a8486", [:rebar3], []},
   "mimerl": {:hex, :mimerl, "1.0.2", "993f9b0e084083405ed8252b99460c4f0563e41729ab42d9074fd5e52439be88", [:rebar3], []},

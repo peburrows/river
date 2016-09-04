@@ -21,7 +21,7 @@ defmodule River.Mixfile do
 
   defp deps do
     [
-      {:hpack, "~> 1.0.0"},
+      {:hpack, "~> 1.0.2"},
       {:gen_stage, "~> 0.5"},
       {:gen_state_machine, "~> 1.0.2"},
       {:hackney, "~> 1.6"},
