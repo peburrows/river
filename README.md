@@ -5,7 +5,7 @@
 River is a general-purpose HTTP client with eventual hopes of full HTTP/2 support (along with support for HTTP/1.1). It is built from the ground up with three major goals:
 
 1. be fully compliant with [RFC 7540](http://httpwg.org/specs/rfc7540.html)
-2. be simple and straightforward to use, in the vein of HTTPoiton
+2. be simple and straightforward to use, in the vein of HTTPoison
 3. be awesome, in the same way that Go's http library (which has built-in, transparent support for `HTTP/2`) is awesome.
 
 ## Installation
