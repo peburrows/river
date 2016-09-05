@@ -76,19 +76,20 @@ defmodule RiverTest do
 
   test "doing things via the genserver" do
     alias Experimental.DynamicSupervisor
-    {:ok, golang} = River.Connection.create("http2.golang.org")
-    {:ok, nghttp} = River.Connection.create("nghttp2.org")
+    # {:ok, golang} = River.Connection.create("http2.golang.org")
+    # {:ok, nghttp} = River.Connection.create("nghttp2.org")
 
-    assert {:ok, %River.Response{code: 200}=g_resp}  = River.Connection.get(golang, "/")
-    assert {:ok, %River.Response{code: 200}=ng_resp} = River.Connection.get(nghttp, "/")
-    assert {:ok, %River.Response{code: 200}=g2_resp} = River.Connection.get(golang, "/.well-known/h2interop/state")
-
-    # IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
-    # IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
-    # IO.puts "\nthe response: #{g2_resp.code}, #{g2_resp.content_type} ::  #{inspect g2_resp.body}"
+    assert {:ok, %River.Response{code: 200}=g_resp}  = River.Client.get("https://http2.golang.org/")
+    assert {:ok, %River.Response{code: 200}=ng_resp} = River.Client.get("https://nghttp2.org/")
+    assert {:ok, %River.Response{code: 200}=g2_resp} = River.Client.get("https://http2.golang.org/.well-known/h2interop/state")
 
 
-    assert {:error, :timeout} = River.Connection.get(golang, "/", 0)
+    IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
+    IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
+    IO.puts "\nthe response: #{g2_resp.code}, #{g2_resp.content_type} ::  #{inspect g2_resp.body}"
+
+
+    # assert {:error, :timeout} = River.Connection.get(golang, "/", 0)
 
     # :observer.start
 

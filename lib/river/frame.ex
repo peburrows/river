@@ -1,8 +1,6 @@
 defmodule River.Frame do
-  require Bitwise
   use River.FrameTypes
 
-  # defstruct [:payload, :stream_id, :type, :flags, :length]
   defstruct [
     payload: <<>>,
     stream_id: nil,
@@ -39,23 +37,23 @@ defmodule River.Frame do
   end
 
   def decode_frames(data, ctx, frames \\ [])
-  def decode_frames(<<>>, ctx, frames) do
-    {:ok, Enum.reverse(frames)}
-  end
+  def decode_frames(<<>>, ctx, frames),
+    do: {:ok, Enum.reverse(frames)}
 
-  # I wonder if decode should work something more like this:
   def decode_frames(<<length::24, type::8, flags::8, _::1, stream_id::31, rest::binary>>, ctx, frames) do
     case rest do
       <<payload::binary-size(length), tail::binary>> ->
+        IO.puts "the flags: #{frame_type type} #{inspect River.Flags.flags(type, flags)}"
         frame = %River.Frame{length:    length,
                              type:      type,
                              flags:     River.Flags.flags(type, flags),
                              stream_id: stream_id,
                              payload:   decode_payload(type, payload, ctx)
                             }
-        # IO.puts "the frame: #{inspect frame}"
+
         decode_frames(tail, ctx, [frame|frames])
       tail ->
+        IO.puts "we weren't able to match the payload"
         # be sure we include the frames we were able to extract, though
         {:error, :incomplete_frame, frames, tail}
     end
@@ -69,9 +67,11 @@ defmodule River.Frame do
 
   # we have encountered an issue with a certain PUSH_PROMISE packet
   # coming from nghttp2.org
-  def decode_payload(@push_promise, payload, _ctx),
-    # do: HPACK.decode(payload, ctx)
-    do: payload
+  def decode_payload(@push_promise, payload, ctx) do
+    # IO.puts "here is the payload we got: #{inspect payload}"
+    # HPack.decode(payload, ctx)
+    payload
+  end
 
   def decode_payload(@data, payload, _ctx), do: payload
   def decode_payload(@rst_stream, payload, _ctx), do: {:error, :rst_stream, payload}

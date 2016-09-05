@@ -1,5 +1,5 @@
 defmodule River.Flags do
-  require Bitwise
+  use Bitwise
   use River.FrameTypes
   alias River.{Frame}
 
@@ -35,14 +35,14 @@ defmodule River.Flags do
     do: Enum.any?(flags, &(&1 == f))
 
   def has_flag?(flags, f) do
-    case Bitwise.&&&(flags, f) do
+    case flags &&& f do
       ^f -> true
       _ -> false
     end
   end
 
   defp get_flags(acc, f, {flag, name}) do
-    case Bitwise.&&&(f, flag) do
+    case f &&& flag do
       ^flag -> [name|acc]
       _     -> acc
     end

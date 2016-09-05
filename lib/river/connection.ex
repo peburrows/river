@@ -25,16 +25,16 @@ defmodule River.Connection do
   end
 
   def init([host: host]) do
-    {:ok, encode_ctx} = HPack.Table.start_link(4096)
-    {:ok, decode_ctx} = HPack.Table.start_link(4096)
+    {:ok, send_ctx} = HPack.Table.start_link(4096)
+    {:ok, recv_ctx} = HPack.Table.start_link(4096)
     state = %{
       # this is kind of hacky, we should handle stream ids a little better
       stream_id: 1,
       host:      host,
       socket:    nil, # nil so we can set the socket in connect
-      widow:     "",
-      encode_ctx: encode_ctx,
-      decode_ctx: decode_ctx,
+      buffer:    "",
+      send_ctx:  send_ctx,
+      recv_ctx: recv_ctx,
     }
 
     {:connect, :init, state}
@@ -99,7 +99,7 @@ defmodule River.Connection do
       socket: socket,
       host: host,
       stream_id: stream_id,
-      encode_ctx: ctx,
+      send_ctx: ctx,
     } = state
 
     stream_id = stream_id + 2
@@ -128,18 +128,18 @@ defmodule River.Connection do
 
   def handle_info({:ssl, _, payload} = msg, state) do
     %{
-      decode_ctx: ctx,
-      socket:     socket,
-      widow:      prev,
-      host:       host,
+      recv_ctx: ctx,
+      socket:   socket,
+      buffer:   prev,
+      host:     host,
     } = state
 
     {new_state, frames} =
       case River.Frame.decode_frames(prev <> payload, ctx) do
         {:ok, frames} ->
           {state, frames}
-        {:error, :incomplete_frame, frames, widow} ->
-          {%{state | widow: widow}, frames}
+        {:error, :incomplete_frame, frames, buffer} ->
+          {%{state | buffer: buffer}, frames}
       end
 
     for f <- frames do

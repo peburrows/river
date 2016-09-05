@@ -31,11 +31,11 @@ defmodule River.StreamHandlerTest do
     refute Process.alive?(pid)
   end
 
-  test "getting a RST_STREAM frame causes the handler to send the error pack and stop itself" do
-    {:ok, pid} = StreamHandler.start_link([], self)
-    StreamHandler.add_frame(pid, %Frame{type: @rst_stream, payload: <<401::32>>})
-    assert_receive {:error, %Response{closed: true, code: 401}}
-    :timer.sleep(10)
-    refute Process.alive?(pid)
-  end
+  # test "getting a RST_STREAM frame causes the handler to send the error pack and stop itself" do
+  #   {:ok, pid} = StreamHandler.start_link([], self)
+  #   StreamHandler.add_frame(pid, %Frame{type: @rst_stream, payload: <<401::32>>})
+  #   assert_receive {:error, %Response{closed: true, code: 401}}
+  #   :timer.sleep(10)
+  #   refute Process.alive?(pid)
+  # end
 end
