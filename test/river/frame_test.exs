@@ -8,12 +8,12 @@ defmodule River.FrameTest do
   end
 
   test "encoding a simple frame" do
-    session_id = 123
+    stream_id = 123
     assert <<5::size(24),
       0x4::size(8),
       _flags::size(8),
-      0::size(1), ^session_id::size(31),
-      "hello">> = River.Frame.encode("hello", session_id, 0x4)
+      0::size(1), ^stream_id::size(31),
+      "hello">> = River.Frame.encode("hello", stream_id, 0x4)
   end
 
   test "decoding an empty frame returns {:ok, []}" do
@@ -31,5 +31,16 @@ defmodule River.FrameTest do
                 payload: []
              }]
            } = Frame.decode_frames(data, :ctx)
+  end
+
+  test "decoding a frame respects padding" do
+    payload = "hello"
+    padding = "world"
+    data = <<byte_size(payload <> padding)::24, 0::8, 0x8::8, payload::binary, padding::binary>>
+
+    assert {:ok, [%Frame{
+      payload: ^payload,
+      flags:   [:PADDED]
+    }]} = Frame.decode_frames(data, nil)
   end
 end
