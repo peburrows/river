@@ -1,9 +1,24 @@
-defmodule River.Connection do
+defmodule River.Conn do
   # the name is confusing, but this is an external behaviour
   use Connection
   use Bitwise
   alias Experimental.DynamicSupervisor
+  alias River.{Conn}
 
+  @default_header_table_size 4096
+
+  defstruct [
+    host:      nil,
+    protocol:  "h2",
+    send_ctx:  nil,
+    recv_ctx:  nil,
+    buffer:    "",
+    socket:    nil,
+    stream_id: -1,
+    streams:   0,
+    settings:  [],
+    server_settings: []
+  ]
 
   def create(host, opts \\ []) do
     name = Keyword.get(opts, :name, :"conn-#{host}")
@@ -15,8 +30,7 @@ defmodule River.Connection do
   end
 
   def start_link(host, opts \\ []) do
-    # IO.puts "the start link opts: #{inspect opts}"
-    case Connection.start_link(__MODULE__, [host: host], opts) do
+    case Connection.start_link(__MODULE__, %Conn{host: host}, opts) do
       {:ok, pid} ->
         {:ok, pid}
       {:error, {:already_started, pid}} ->
@@ -24,20 +38,21 @@ defmodule River.Connection do
     end
   end
 
-  def init([host: host]) do
-    {:ok, send_ctx} = HPack.Table.start_link(4096)
-    {:ok, recv_ctx} = HPack.Table.start_link(4096)
-    state = %{
-      # this is kind of hacky, we should handle stream ids a little better
-      stream_id: 1,
-      host:      host,
-      socket:    nil, # nil so we can set the socket in connect
-      buffer:    "",
-      send_ctx:  send_ctx,
-      recv_ctx: recv_ctx,
-    }
+  def init(%Conn{host: host}=conn) do
+    {:ok, send_ctx} = HPack.Table.start_link(@default_header_table_size)
+    {:ok, recv_ctx} = HPack.Table.start_link(@default_header_table_size)
 
-    {:connect, :init, state}
+    conn = %{conn |
+              send_ctx: send_ctx,
+              recv_ctx: recv_ctx,
+              settings: [
+                MAX_CONCURRENT_STREAMS: 100,
+                INITIAL_WINDOW_SIZE: 65535,
+                HEADER_TABLE_SIZE: @default_header_table_size,
+              ],
+             }
+
+    {:connect, :init, conn}
   end
 
   def get(pid, path, timeout \\ 5_000) do
@@ -54,57 +69,49 @@ defmodule River.Connection do
     end
   end
 
-  def connect(info, %{host: host}=state) do
+  def connect(info, %Conn{host: host}=conn) do
     host = String.to_charlist(host)
-    verify_fun = {(&:ssl_verify_hostname.verify_fun/3), [{:check_hostname, host}]}
-    certs = :certifi.cacerts()
-    opts = [
-      :binary,
-      {:packet, 0},
-      {:active, false},
-      {:verify, :verify_peer},
-      {:depth, 99},
-      {:cacerts, certs},
-      {:alpn_advertised_protocols, ["h2", "http/1.1"]},
-      {:verify_fun, verify_fun}
-    ]
 
-    case :ssl.connect(host, 443, opts) do
+    IO.puts "about to call the things! :: #{inspect host}"
+    case :ssl.connect(host, 443, ssl_options(host)) do
       {:ok, socket} ->
+        IO.puts "connected alright!"
         River.Frame.http2_header
         :ssl.send(socket, River.Frame.http2_header)
-        frame = River.Frame.Settings.encode([
-          MAX_CONCURRENT_STREAMS: 100,
-          INITIAL_WINDOW_SIZE: 65535,
-          HEADER_TABLE_SIZE: 4096,
-          # ENABLE_PUSH: 0
-        ], 0)
+
+        frame = River.Frame.Settings.encode(conn.settings, 0)
 
         # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(frame, case: :lower)}#{IO.ANSI.reset}"
 
         :ssl.send(socket, frame)
-        {:ok, %{state | socket: socket}}
+        IO.puts "the connection was established for #{host}"
+        {:ok, %{conn | socket: socket}}
       {:error, _} = error ->
         IO.puts "connection was no good for some reason #{inspect error}"
-        {:backoff, 1000, state}
+        {:backoff, 1000, conn}
+      other ->
+        IO.puts "the connection was just weird? :: #{inspect other}"
+        {:backoff, 1000, conn}
     end
   end
 
-  def handle_cast({:get, path}, state), do: handle_cast({:get, path, nil}, state)
-  def handle_cast({:get, path, parent}, state) do
+  def handle_cast({:get, path}, conn), do: handle_cast({:get, path, nil}, conn)
+  def handle_cast({:get, path, parent}, conn) do
+    IO.puts "we are being asked to GET"
     # the problem here might be that this call will block until it fires
     # off the request, which is less than ideal. What we should do here is
     # spin up a RequestHandler of some sort to trigger it and handle things
     %{
-      socket: socket,
-      host: host,
+      socket:    socket,
+      host:      host,
       stream_id: stream_id,
-      send_ctx: ctx,
-    } = state
+      send_ctx:  ctx,
+      streams:   streams
+    } = conn
 
     stream_id = stream_id + 2
 
-    {:ok, _handler_pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
+    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
 
     :ssl.setopts(socket, [active: true])
 
@@ -123,38 +130,51 @@ defmodule River.Connection do
     # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 
     :ssl.send(socket, f)
-    {:noreply, %{state | stream_id: stream_id } }
+    {:noreply, %{conn | stream_id: stream_id, streams: streams+1 } }
   end
 
-  def handle_info({:ssl, _, payload} = msg, state) do
+  def handle_info({:ssl, _, payload} = msg, conn) do
     %{
       recv_ctx: ctx,
       socket:   socket,
       buffer:   prev,
       host:     host,
-    } = state
+    } = conn
 
-    {new_state, frames} =
+    {new_conn, frames} =
       case River.Frame.decode_frames(prev <> payload, ctx) do
         {:ok, frames} ->
-          {state, frames}
+          {%{conn | buffer: ""}, frames}
         {:error, :incomplete_frame, frames, buffer} ->
-          {%{state | buffer: buffer}, frames}
+          {%{conn | buffer: buffer}, frames}
       end
 
     for f <- frames do
-      # IO.puts "adding this frame: #{inspect f}"
       {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
 
       River.StreamHandler.add_frame(pid, f)
-      # IO.puts "the response as of now: #{inspect River.StreamHandler.get_response(pid)}"
     end
 
-    {:noreply, new_state}
+    {:noreply, new_conn}
   end
 
-  def handle_info(msg, state) do
+  def handle_info(msg, conn) do
     IO.puts "unhandled message: #{inspect msg}"
-    {:noreply, state}
+    {:noreply, conn}
+  end
+
+  defp ssl_options(host) do
+    verify_fun = {(&:ssl_verify_hostname.verify_fun/3), [{:check_hostname, host}]}
+
+    [
+      :binary,
+      {:packet, 0},
+      {:active, false},
+      {:verify, :verify_peer},
+      {:depth, 99},
+      {:cacerts, :certifi.cacerts()},
+      {:alpn_advertised_protocols, ["h2", "http/1.1"]},
+      {:verify_fun, verify_fun}
+    ]
   end
 end
