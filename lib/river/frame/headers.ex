@@ -39,7 +39,7 @@ defmodule River.Frame.Headers do
   defp decode_payload({%__MODULE__{length: len, padding: pad_len, flags: %{padded: true}}=frame, payload}, ctx) do
     data_len = len - pad_len
     case payload do
-      <<data::binary-size(data_len), _pad::binary-size(pad_len)>> ->
+      <<data::binary-size(data_len), _pad::binary-size(pad_len), _rest::binary>> ->
         {:ok, %{frame | headers: HPack.decode(data, ctx)}}
       _ ->
         {:error, :incomplete_frame}
@@ -48,7 +48,7 @@ defmodule River.Frame.Headers do
 
   defp decode_payload({%__MODULE__{length: len}=frame, payload}, ctx) do
     case payload do
-      <<data::binary-size(len)>> ->
+      <<data::binary-size(len), _rest::binary>> ->
         {:ok, %{frame | headers: HPack.decode(data, ctx)}}
       _ ->
         {:error, :incomplete_frame}

@@ -33,14 +33,14 @@ defmodule River.FrameTest do
            } = Frame.decode_frames(data, :ctx)
   end
 
-  test "decoding a frame respects padding" do
-    payload = "hello"
-    padding = "world"
-    data = <<byte_size(payload <> padding)::24, 0::8, 0x8::8, payload::binary, padding::binary>>
+  # test "decoding a frame respects padding" do
+  #   payload = "hello"
+  #   padding = "world"
+  #   data = <<byte_size(payload <> padding)::24, 0::8, 0x8::8, payload::binary, padding::binary>>
 
-    assert {:ok, [%Frame{
-      payload: ^payload,
-      flags:   [:PADDED]
-    }]} = Frame.decode_frames(data, nil)
-  end
+  #   assert {:ok, [%Frame{
+  #     payload: ^payload,
+  #     flags:   [:PADDED]
+  #   }]} = Frame.decode_frames(data, nil)
+  # end
 end

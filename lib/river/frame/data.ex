@@ -17,34 +17,44 @@ defmodule River.Frame.Data do
     end
   end
 
-  def decode(%__MODULE__{flags: nil}=frame, flags, payload) do
-    %{frame | flags: Flags.parse(flags)}
+  def decode(%__MODULE__{}=frame, flags, payload) do
+    frame
+    |> parse_flags(flags)
     |> decode(payload)
   end
 
-  def decode(%__MODULE__{length: len, flags: %{padded: false}}=frame, payload) do
+  def decode(%__MODULE__{}=frame, payload) do
+    {frame, payload}
+    |> extract_padding
+    |> decode_payload
+  end
+
+  defp parse_flags(frame, flags) do
+    %{frame | flags: Flags.parse(flags)}
+  end
+
+  defp extract_padding({%{length: len, flags: %{padded: true}}=frame, <<pad_len::8, payload::binary>>}) do
+    { %{frame | padding: pad_len, length: len-1}, payload }
+  end
+  defp extract_padding({f, p}), do: {f, p}
+
+  defp decode_payload({%{length: len, padding: pad_len, flags: %{padded: true}}=frame, payload}) do
+    data_len = len - pad_len
     case payload do
-      <<data::binary-size(len), rest::binary>> ->
+      <<data::binary-size(data_len), _pad::binary-size(pad_len), _rest::binary>> ->
         {:ok, %{frame | payload: data}}
       _ ->
         {:error, :incomplete_frame}
     end
   end
 
-  # padded payload
-  def decode(%__MODULE__{length: len}=frame, <<pad_len::8, payload::binary>>) do
-    data_len = len - pad_len - 1
-
+  defp decode_payload({%{length: len}=frame, payload}) do
     case payload do
-      <<data::binary-size(data_len), _padding::binary-size(pad_len), rest::binary>> ->
-        {:ok, %{frame | payload: data, padding: pad_len}}
+      <<data::binary-size(len), _rest::binary>> ->
+        {:ok, %{frame | payload: data}}
       _ ->
         {:error, :incomplete_frame}
     end
   end
 
-  # if it hasn't matched anything, it's incomplete
-  def decode(%__MODULE__{}, payload) do
-    {:error, :incomplete_frame}
-  end
 end
