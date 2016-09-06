@@ -41,6 +41,7 @@ defmodule River.Frame do
     do: {:ok, Enum.reverse(frames)}
 
   def decode_frames(<<length::24, type::8, flags::8, _::1, stream_id::31, rest::binary>>, ctx, frames) do
+
     case rest do
       <<payload::binary-size(length), tail::binary>> ->
         IO.puts "the flags: #{frame_type type} #{inspect River.Flags.flags(type, flags)}"
@@ -51,9 +52,9 @@ defmodule River.Frame do
                              payload:   decode_payload(type, payload, ctx)
                             }
 
+        IO.puts "the payload: #{inspect frame.payload}"
         decode_frames(tail, ctx, [frame|frames])
       tail ->
-        IO.puts "we weren't able to match the payload"
         # be sure we include the frames we were able to extract, though
         {:error, :incomplete_frame, frames, tail}
     end
