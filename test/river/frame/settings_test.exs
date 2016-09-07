@@ -4,16 +4,18 @@ defmodule River.Frame.SettingsTest do
 
   test "an empty payload decodes to an empty list" do
     # no real need for the context here, so just pass it as nil
-    assert [] = Settings.decode(<<>>)
+    assert %Settings{settings: []} = Settings.decode(<<>>)
   end
 
   test "a payload with a few settings decodes the values properly" do
     payload = <<0, 5, 0, 16, 0, 0, 0, 3, 0, 0, 0, 250, 0, 6, 0, 16, 1, 64>>
-    assert Settings.decode(payload) == [
-      MAX_HEADER_LIST_SIZE: 1048896,
-      MAX_CONCURRENT_STREAMS: 250,
-      MAX_FRAME_SIZE: 1048576
-    ]
+    assert %Settings{
+      settings: [
+        MAX_HEADER_LIST_SIZE: 1048896,
+        MAX_CONCURRENT_STREAMS: 250,
+        MAX_FRAME_SIZE: 1048576
+      ]
+    } = Settings.decode(payload)
   end
 
   test "encoding settings frame payload" do

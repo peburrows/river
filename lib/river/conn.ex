@@ -95,6 +95,12 @@ defmodule River.Conn do
     end
   end
 
+  def disconnect(info, %Conn{socket: socket}=conn) do
+    # we need to disconnect from the ssl socket
+    :ssl.close(socket)
+    {:stop, :exit, conn}
+  end
+
   def handle_cast({:get, path}, conn), do: handle_cast({:get, path, nil}, conn)
   def handle_cast({:get, path, parent}, conn) do
     IO.puts "we are being asked to GET"
