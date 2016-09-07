@@ -28,7 +28,7 @@ defmodule River.FrameTest do
                 type:   0x4,
                 flags: [:ACK],
                 stream_id: 15,
-                payload: []
+                payload: %Frame.Settings{settings: []}
              }]
            } = Frame.decode_frames(data, :ctx)
   end

@@ -1,9 +1,19 @@
 defmodule River.Frame.Settings do
   use River.FrameTypes
 
-  # defstruct [
-  #   settings: %{}
-  # ]
+  defmodule Flags do
+    defstruct [ack: false]
+    def parse(flags) do
+      %__MODULE__{
+        ack: River.Flags.has_flag?(flags, 0x1)
+      }
+    end
+  end
+
+  defstruct [
+    settings: [],
+    ack:      false
+  ]
 
   def encode(settings, stream_id, flags \\ 0) when is_list(settings) do
     settings
@@ -18,10 +28,11 @@ defmodule River.Frame.Settings do
     encode_payload(tail, (acc <> <<setting(name)::16, value::32>>))
   end
 
-  def decode(payload),    do: decode(payload, [])
+  def decode(payload),    do: decode(payload, %__MODULE__{})
   defp decode(<<>>, acc), do: acc
-  defp decode(<<id::16, value::32, rest::binary>>, acc) do
-    decode(rest, [{name(id), value} | acc])
+  defp decode(<<id::16, value::32, rest::binary>>, %{settings: settings}=acc) do
+    # decode(rest, [{name(id), value} | acc])
+    decode(rest, %{acc | settings: [{name(id), value} | settings]})
   end
 
   defp name(0x1), do: :HEADER_TABLE_SIZE
