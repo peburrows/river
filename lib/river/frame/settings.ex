@@ -1,6 +1,10 @@
 defmodule River.Frame.Settings do
   use River.FrameTypes
 
+  # defstruct [
+  #   settings: %{}
+  # ]
+
   def encode(settings, stream_id, flags \\ 0) when is_list(settings) do
     settings
     |> encode_payload
