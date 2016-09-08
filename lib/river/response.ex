@@ -15,19 +15,19 @@ defmodule River.Response do
   def add_frame(%__MODULE__{}=response, %Frame{type: @data}=frame) do
     %{response |
       frames: [frame|response.frames],
-      body: response.body <> frame.payload
+      body: response.body <> frame.payload.data
     } |> handle_flags(frame)
   end
 
   def add_frame(%__MODULE__{}=response, %Frame{type: @headers}=frame) do
     %{response | frames:  [frame|response.frames]}
-    |> add_headers(frame.payload)
+    |> add_headers(frame.payload.headers)
     |> handle_flags(frame)
   end
 
   def add_frame(%__MODULE__{}=response, %Frame{type: @continuation}=frame) do
     %{response | frames: [frame|response.frames]}
-    |> add_headers(frame.payload)
+    |> add_headers(frame.payload.headers)
     |> handle_flags(frame)
   end
 
@@ -35,7 +35,7 @@ defmodule River.Response do
     %{response |
       frames: [frame|response.frames],
       closed: true, __status: :error,
-      code:   String.to_integer(code, 10)
+      code:   code.error
     } |> handle_flags(frame)
   end
 
@@ -67,17 +67,9 @@ defmodule River.Response do
     |> add_headers(tail)
   end
 
-  defp handle_flags(response, %Frame{flags: flags}) when is_list(flags) do
-    case Flags.has_flag?(flags, :END_STREAM) do
-      true -> %{response | closed: true}
-      _ -> response
-    end
+  defp handle_flags(response, %Frame{flags: %{end_stream: true}}) do
+    %{response | closed: true}
   end
 
-  defp handle_flags(response, %Frame{flags: flags}) do
-    case Flags.has_flag?(flags, 0x1) do
-      true -> %{response | closed: true}
-      _ -> response
-    end
-  end
+  defp handle_flags(response, _), do: response
 end

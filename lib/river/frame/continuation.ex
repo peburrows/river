@@ -1,4 +1,4 @@
-defmodule River.Frame.PushPromise do
+defmodule River.Frame.Continuation do
   alias River.{Frame, Frame.Headers}
 
   defstruct [
@@ -38,5 +38,4 @@ defmodule River.Frame.PushPromise do
         e
     end
   end
-
 end

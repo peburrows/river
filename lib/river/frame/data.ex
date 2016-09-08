@@ -1,10 +1,9 @@
 defmodule River.Frame.Data do
+  alias River.Frame
+
   defstruct [
     padding:   0,
-    stream_id: nil,
-    length:    0,
-    payload:   "",
-    flags:     %{},
+    data:   <<>>,
   ]
 
   defmodule Flags do
@@ -17,43 +16,26 @@ defmodule River.Frame.Data do
     end
   end
 
-  def decode(%__MODULE__{}=frame, flags, payload) do
-    frame
-    |> parse_flags(flags)
-    |> decode(payload)
-  end
+  def decode(%Frame{length: len, flags: %{padded: true}}=frame, <<pad_len::8, data::binary>>) do
+    data_len = len - pad_len - 1
 
-  def decode(%__MODULE__{}=frame, payload) do
-    {frame, payload}
-    |> extract_padding
-    |> decode_payload
-  end
-
-  defp parse_flags(frame, flags) do
-    %{frame | flags: Flags.parse(flags)}
-  end
-
-  defp extract_padding({%{length: len, flags: %{padded: true}}=frame, <<pad_len::8, payload::binary>>}) do
-    { %{frame | padding: pad_len, length: len-1}, payload }
-  end
-  defp extract_padding({f, p}), do: {f, p}
-
-  defp decode_payload({%{length: len, padding: pad_len, flags: %{padded: true}}=frame, payload}) do
-    data_len = len - pad_len
-    case payload do
-      <<data::binary-size(data_len), _pad::binary-size(pad_len), _rest::binary>> ->
-        {:ok, %{frame | payload: data}}
+    case data do
+      <<payload::binary-size(data_len), _pad::binary-size(pad_len)>> ->
+        %{frame | payload: %__MODULE__{
+             padding: pad_len,
+             data:    payload
+          }}
       _ ->
-        {:error, :incomplete_frame}
+        {:error, :invalid_frame}
     end
   end
 
-  defp decode_payload({%{length: len}=frame, payload}) do
-    case payload do
-      <<data::binary-size(len), _rest::binary>> ->
-        {:ok, %{frame | payload: data}}
+  def decode(%Frame{length: len}=frame, data) do
+    case data do
+      <<payload::binary-size(len)>> ->
+        %{frame | payload: %__MODULE__{data: payload}}
       _ ->
-        {:error, :incomplete_frame}
+        {:error, :invalid_frame}
     end
   end
 
