@@ -12,8 +12,7 @@ defmodule River.Frame.Settings do
   end
 
   defstruct [
-    settings: [],
-    ack:      false
+    settings: []
   ]
 
   def encode(settings, stream_id, flags \\ 0) when is_list(settings) do

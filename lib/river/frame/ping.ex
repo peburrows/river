@@ -3,6 +3,15 @@ defmodule River.Frame.Ping do
 
   defstruct [:payload, :ack]
 
+  defmodule Flags do
+    defstruct [:ack]
+    def parse(flags) do
+      %__MODULE__{
+        ack: River.Flags.has_flag?(flags, 0x1)
+      }
+    end
+  end
+
   # until we change the flags default to be a map
   def decode(%Frame{flags: []}=frame, payload) do
     decode(%{frame | flags: %{}}, payload)

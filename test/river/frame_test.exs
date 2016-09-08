@@ -1,6 +1,8 @@
 defmodule River.FrameTest do
   use ExUnit.Case, async: true
+  use River.FrameTypes
   alias River.Frame
+  alias River.Frame.{Data, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
 
   test "the http2 header is correct" do
     assert Frame.http2_header() ==
@@ -16,31 +18,135 @@ defmodule River.FrameTest do
       "hello">> = River.Frame.encode("hello", stream_id, 0x4)
   end
 
-  test "decoding an empty frame returns {:ok, []}" do
-    assert {:ok, []} = Frame.decode_frames(<<>>, :ctx)
-  end
 
-  test "decoding a single frame returns a single frame" do
-    data = <<0::24, 4::8, 1::8, 0::1, 15::31>>
+  test "decoding a single frame with excess data" do
+    data = <<0::24, 4::8, 1::8, 0::1, 15::31>> <> "extra"
     assert {:ok,
-            [%Frame{
-                length: 0,
-                type:   0x4,
-                flags: [:ACK],
-                stream_id: 15,
-                payload: %Frame.Settings{settings: []}
-             }]
-           } = Frame.decode_frames(data, :ctx)
+            %Frame{
+              length:    0,
+              type:      0x4,
+              stream_id: 15,
+              flags:     %{ack: true},
+              payload:   %Frame.Settings{settings: []}
+            }, "extra"} = Frame.decode(data, :ctx)
   end
 
-  # test "decoding a frame respects padding" do
-  #   payload = "hello"
-  #   padding = "world"
-  #   data = <<byte_size(payload <> padding)::24, 0::8, 0x8::8, payload::binary, padding::binary>>
+  test "decoding a DATA frame respects padding" do
+    payload = "hello"
+    padding = "world"
+    length = byte_size(payload <> padding) + 1
+    data = <<length::24, 0::8, 0x8::8, 1::1, 13::31, byte_size(padding)::8, payload::binary, padding::binary>>
 
-  #   assert {:ok, [%Frame{
-  #     payload: ^payload,
-  #     flags:   [:PADDED]
-  #   }]} = Frame.decode_frames(data, nil)
-  # end
+    assert {:ok, %Frame{
+               flags:   %{padded: true},
+               stream_id: 13,
+               payload: %Frame.Data{
+                 padding: 5,
+                 data:    "hello"
+               }
+            }, ""} = Frame.decode(data, :ctx)
+  end
+
+  test "decoding a GOAWAY frame" do
+    payload = <<1::1, 13::31, 0x6::32>>
+    frame = <<byte_size(payload)::24, @goaway::8, 0::8, 1::1, 0::31, payload::binary>>
+
+    assert {:ok, %Frame{
+               stream_id: 0,
+               payload: %GoAway{
+                 error: :FRAME_SIZE_ERROR,
+                 last_stream_id: 13
+               }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
+
+  test "decoding a HEADERS frame" do
+    {:ok, ctx} = HPack.Table.start_link(4096)
+    headers    = [{":method", "GET"}]
+    payload    = HPack.encode(headers, ctx)
+    length     = byte_size(payload)
+    frame      = <<length::24, @headers::8, 0x1::8, 1::1, 21::31, payload::binary>>
+
+    assert {:ok, %Frame{
+               stream_id: 21,
+               length: length,
+               flags: %{end_stream: true},
+               payload: %Headers{
+                 headers: ^headers
+               }
+            }, ""} = Frame.decode(frame, ctx)
+  end
+
+  test "decoding a PING frame" do
+    frame = <<8::24, @ping::8, 0::8, 1::1, 0::31, 100::64>>
+    assert {:ok, %Frame{
+               length: 8,
+               stream_id: 0,
+               flags: %{ack: false},
+               payload: %Ping{
+                 payload: <<100::64>>
+               }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
+
+  test "decoding a PUSH_PROMISE frame" do
+    {:ok, ctx} = HPack.Table.start_link(4096)
+    headers    = [{":method", "GET"}]
+    payload    = HPack.encode(headers, ctx)
+    length     = byte_size(payload)
+    frame      = <<length::24, @push_promise::8, 0x1::8, 1::1, 21::31, payload::binary>>
+
+    assert {:ok, %Frame{
+               length:   ^length,
+               stream_id: 21,
+               flags: %{end_stream: true},
+               payload: %PushPromise{
+                 headers: ^headers,
+               }
+            }, ""} = Frame.decode(frame, ctx)
+  end
+
+  test "decoding an RST_STREAM frame" do
+    frame = <<4::24, @rst_stream::8, 0::8, 0::1, 101::31, 0x1::32>>
+
+    assert {:ok, %Frame{
+               length: 4,
+               stream_id: 101,
+               payload: %RstStream{
+                 error: :PROTOCOL_ERROR
+               }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
+
+  test "decoding an empty SETTINGS frame returns {:ok, [], <<>>}" do
+    assert {:ok, [], <<>>} = Frame.decode(<<>>, :ctx)
+  end
+
+  test "decoding a SETTINGS frame" do
+    frame = <<6::24, @settings::8, 1::8, 0::1, 15::31, 0x1::16, 4096::32>>
+    assert {:ok,
+            %Frame{
+              length:    6,
+              type:      0x4,
+              stream_id: 15,
+              flags:     %{ack: true},
+              payload:   %Frame.Settings{
+                settings: [
+                  HEADER_TABLE_SIZE: 4096
+                ]
+              }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
+
+  test "decoding a WINDOW_UPDATE frame" do
+    frame = <<4::24, @window_update::8, 0::8, 1::1, 0::31, 1::1, 10_000::31>>
+    assert {:ok, %Frame{
+               length: 4,
+               type:   @window_update,
+               stream_id: 0,
+               payload: %WindowUpdate{
+                 increment: 10_000
+               }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
 end

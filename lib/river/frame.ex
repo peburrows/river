@@ -1,5 +1,6 @@
 defmodule River.Frame do
   use River.FrameTypes
+  alias River.Frame.{Data, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
 
   defstruct [
     payload: <<>>,
@@ -36,56 +37,77 @@ defmodule River.Frame do
     >>
   end
 
-  def decode_frames(data, ctx, frames \\ [])
-  def decode_frames(<<>>, ctx, frames),
-    do: {:ok, Enum.reverse(frames)}
-
-  def decode_frames(<<length::24, type::8, flags::8, _::1, stream_id::31, rest::binary>>, ctx, frames) do
-
-    case rest do
-      <<payload::binary-size(length), tail::binary>> ->
-        IO.puts "the flags: #{frame_type type} #{inspect River.Flags.flags(type, flags)}"
-        frame = %River.Frame{length:    length,
-                             type:      type,
-                             flags:     River.Flags.flags(type, flags),
-                             stream_id: stream_id,
-                             payload:   decode_payload(type, payload, ctx)
-                            }
-
-        IO.puts "the payload: #{inspect frame.payload}"
-        decode_frames(tail, ctx, [frame|frames])
-      tail ->
-        # be sure we include the frames we were able to extract, though
-        {:error, :incomplete_frame, frames, tail}
+  def decode(<<>>, _ctx), do: {:ok, [], <<>>}
+  def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>>, ctx) do
+    case payload do
+      <<data::binary-size(length), tail::binary>> ->
+        frame = %__MODULE__{length: length,
+                            type:   type,
+                            flags:  parse_flags(type, flags),
+                            stream_id: stream
+                           } |> decode_payload(data, ctx)
+        {:ok, frame, tail}
+      _ ->
+        {:error, :invalid_frame, payload}
     end
   end
 
-  def decode_payload(@headers, payload, ctx),
-    do: HPack.decode(payload, ctx)
 
-  def decode_payload(@continuation, payload, ctx),
-    do: HPack.decode(payload, ctx)
-
-  # we have encountered an issue with a certain PUSH_PROMISE packet
-  # coming from nghttp2.org
-  def decode_payload(@push_promise, payload, ctx) do
-    # IO.puts "here is the payload we got: #{inspect payload}"
-    # HPack.decode(payload, ctx)
-    payload
+  defp decode_payload(%{type: @data}=frame, payload, _ctx) do
+    Data.decode(frame, payload)
   end
 
-  def decode_payload(@data, payload, _ctx), do: payload
-  def decode_payload(@rst_stream, payload, _ctx), do: {:error, :rst_stream, payload}
-
-  def decode_payload(@goaway, <<_::size(1), sid::size(31), error::size(32), _rest::binary>>, _ctx) do
-    IO.puts "goaway because of stream: #{sid} -- #{error}"
-    {:error, :goaway, error}
+  defp decode_payload(%{type: @goaway}=frame, payload, _ctx) do
+    GoAway.decode(frame, payload)
   end
 
-  # settings frame
-  def decode_payload(@settings, payload, _ctx) do
-    River.Frame.Settings.decode(payload)
+  defp decode_payload(%{type: @headers}=frame, payload, ctx) do
+    Headers.decode(frame, payload, ctx)
   end
+
+  defp decode_payload(%{type: @ping}=frame, payload, _ctx) do
+    Ping.decode(frame, payload)
+  end
+
+  defp decode_payload(%{type: @push_promise}=frame, payload, ctx) do
+    PushPromise.decode(frame, payload, ctx)
+  end
+
+  defp decode_payload(%{type: @rst_stream}=frame, payload, _ctx) do
+    RstStream.decode(frame, payload)
+  end
+
+  defp decode_payload(%{type: @settings}=frame, payload, _ctx) do
+    Settings.decode(frame, payload)
+  end
+
+  defp decode_payload(%{type: @window_update}=frame, payload, _ctx) do
+    WindowUpdate.decode(frame, payload)
+  end
+
+  defp parse_flags(@data, flags),
+    do: Data.Flags.parse(flags)
+
+  defp parse_flags(@goaway, flags),
+    do: %{}
+
+  defp parse_flags(@headers, flags),
+    do: Headers.Flags.parse(flags)
+
+  defp parse_flags(@ping, flags),
+    do: Ping.Flags.parse(flags)
+
+  defp parse_flags(@push_promise, flags),
+    do: PushPromise.Flags.parse(flags)
+
+  defp parse_flags(@rst_stream, flags),
+    do: %{}
+
+  defp parse_flags(@settings, flags),
+    do: Settings.Flags.parse(flags)
+
+  defp parse_flags(@window_update, flags),
+    do: %{}
 
   defp frame_type(@settings),     do: :SETTINGS
   defp frame_type(@headers),      do: :HEADERS
