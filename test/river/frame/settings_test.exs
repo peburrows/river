@@ -1,21 +1,26 @@
 defmodule River.Frame.SettingsTest do
   use ExUnit.Case, async: true
-  alias River.Frame.Settings
+  alias River.{Frame, Frame.Settings}
 
   test "an empty payload decodes to an empty list" do
-    # no real need for the context here, so just pass it as nil
-    assert %Settings{settings: []} = Settings.decode(<<>>)
+    assert %Frame{
+      payload: %Settings{
+        settings: []
+      }
+    } = Settings.decode(%Frame{}, <<>>)
   end
 
   test "a payload with a few settings decodes the values properly" do
-    payload = <<0, 5, 0, 16, 0, 0, 0, 3, 0, 0, 0, 250, 0, 6, 0, 16, 1, 64>>
-    assert %Settings{
-      settings: [
-        MAX_HEADER_LIST_SIZE: 1048896,
-        MAX_CONCURRENT_STREAMS: 250,
-        MAX_FRAME_SIZE: 1048576
-      ]
-    } = Settings.decode(payload)
+    payload = <<0x6::16, 1048896::32, 0x3::16, 250::32, 0x5::16, 1048576::32>>
+    assert %Frame{
+      payload: %Settings{
+        settings: [
+          MAX_HEADER_LIST_SIZE: 1048896,
+          MAX_CONCURRENT_STREAMS: 250,
+          MAX_FRAME_SIZE: 1048576
+        ]
+      }
+    } = Settings.decode(%Frame{}, payload)
   end
 
   test "encoding settings frame payload" do
