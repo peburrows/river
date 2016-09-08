@@ -1,9 +1,8 @@
 defmodule River.Frame.Headers do
+  alias River.Frame
+
   defstruct [
     padding:   0,
-    stream_id: nil,
-    flags:     %{},
-    length:    0,
     headers:   [],
     exclusive: false,
     stream_dependency: 0,
@@ -22,50 +21,69 @@ defmodule River.Frame.Headers do
     end
   end
 
-  def decode(%__MODULE__{}=frame, flags, payload, ctx) do
-    frame
-    |> parse_flags(flags)
-    |> decode(payload, ctx)
-  end
+  def decode(%Frame{length: len, flags: %{padded: true, priority: true}}=frame,
+    <<pl::8, ex::1, dep::31, weight::8, payload::binary>>, ctx) do
 
-  def decode(%__MODULE__{}=frame, payload, ctx) do
-    {frame, rest} =
-      {frame, payload}
-      |> extract_padding
-      |> extract_priority
-      |> decode_payload(ctx)
-  end
-
-  defp decode_payload({%__MODULE__{length: len, padding: pad_len, flags: %{padded: true}}=frame, payload}, ctx) do
-    data_len = len - pad_len
+    data_len = len - pl - 6
     case payload do
-      <<data::binary-size(data_len), _pad::binary-size(pad_len), _rest::binary>> ->
-        {:ok, %{frame | headers: HPack.decode(data, ctx)}}
+      <<data::binary-size(data_len), _pad::binary-size(pl)>> ->
+        %{frame |
+          payload: %__MODULE__{
+            headers: HPack.decode(data, ctx),
+            padding: pl,
+            exclusive: (ex==1),
+            weight:    weight+1,
+            stream_dependency: dep
+          }
+         }
       _ ->
-        {:error, :incomplete_frame}
+        {:error, :invalid_frame}
     end
   end
 
-  defp decode_payload({%__MODULE__{length: len}=frame, payload}, ctx) do
+  def decode(%Frame{length: len, flags: %{padded: true}}=frame, <<pl::8, payload::binary>>, ctx) do
+    data_len = len - pl - 1
     case payload do
-      <<data::binary-size(len), _rest::binary>> ->
-        {:ok, %{frame | headers: HPack.decode(data, ctx)}}
+      <<data::binary-size(data_len), _pad::binary-size(pl)>> ->
+        %{frame |
+          payload: %__MODULE__{
+            headers: HPack.decode(data, ctx),
+            padding: pl
+          }
+         }
       _ ->
-        {:error, :incomplete_frame}
+        {:error, :invalid_frame}
     end
   end
 
-  defp parse_flags(frame, flags) do
-    %{frame | flags: Flags.parse(flags)}
+  def decode(%Frame{length: len, flags: %{priority: true}}=frame,
+    <<ex::1, dep::31, weight::8, payload::binary>>, ctx) do
+
+    data_len = len - 5
+    case payload do
+      <<data::binary-size(data_len)>> ->
+        %{frame |
+          payload: %__MODULE__{
+            headers: HPack.decode(data, ctx),
+            stream_dependency: dep,
+            weight: weight+1,
+            exclusive: (ex==1)
+          }
+         }
+      _ ->
+        {:error, :invalid_frame}
+    end
   end
 
-  defp extract_padding({%{length: len, flags: %{padded: true}}=frame, <<pad_len::8, payload::binary>>}) do
-    { %{frame | padding: pad_len, length: len-1}, payload }
+  def decode(%Frame{length: len}=frame, payload, ctx) do
+    case payload do
+      <<data::binary-size(len)>> ->
+        %{frame |
+          payload: %__MODULE__{
+             headers: HPack.decode(data, ctx)
+          }}
+      _ ->
+        {:error, :invalid_frame}
+    end
   end
-  defp extract_padding({f, p}), do: {f, p}
-
-  defp extract_priority({%{length: len, flags: %{priority: true}}=frame, <<ex::1, dep::31, payload::binary>>}) do
-    { %{frame | exclusive: (ex==1), stream_dependency: dep, length: len-4}, payload }
-  end
-  defp extract_priority({f, p}), do: {f, p}
 end
