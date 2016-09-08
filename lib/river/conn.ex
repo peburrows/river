@@ -3,7 +3,7 @@ defmodule River.Conn do
   use Connection
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn}
+  alias River.{Conn, Frame}
 
   @default_header_table_size 4096
 
@@ -147,13 +147,8 @@ defmodule River.Conn do
       host:     host,
     } = conn
 
-    {new_conn, frames} =
-      case River.Frame.decode_frames(prev <> payload, ctx) do
-        {:ok, frames} ->
-          {%{conn | buffer: ""}, frames}
-        {:error, :incomplete_frame, frames, buffer} ->
-          {%{conn | buffer: buffer}, frames}
-      end
+
+    {new_conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
 
     for f <- frames do
       {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
@@ -162,6 +157,18 @@ defmodule River.Conn do
     end
 
     {:noreply, new_conn}
+  end
+
+  defp decode_frames(conn, <<>>, _ctx, stack),
+    do: {conn, Enum.reverse(stack)}
+
+  defp decode_frames(conn, payload, ctx, stack) do
+    case Frame.decode(payload, ctx) do
+      {:ok, frame, more} ->
+        decode_frames(conn, more, ctx, [frame | stack])
+      {:error, :invalid_frame} ->
+        { %{conn | buffer: payload}, Enum.reverse(stack) }
+    end
   end
 
   def handle_info(msg, conn) do
