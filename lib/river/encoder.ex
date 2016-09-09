@@ -14,6 +14,11 @@ defmodule River.Encoder do
     head <> body
   end
 
+  defp payload(%{type: @continuation, payload: %{headers: headers}}=frame, ctx) do
+    encoded = HPack.encode(headers, ctx)
+    %{frame | __payload: encoded, length: byte_size(encoded)}
+  end
+
   defp payload(%{type: @data, payload: %{data: data}}=frame, _ctx) do
     %{frame | __payload: data}
     |> padded_payload
@@ -41,10 +46,29 @@ defmodule River.Encoder do
   end
 
   defp payload(%{type: @push_promise, payload: %{headers: headers, promised_stream_id: prom_id}}=frame, ctx) do
-    [prom_id, prom_id] |> IO.inspect
     %{frame | __payload: <<1::1, prom_id::31>> <> HPack.encode(headers, ctx)}
     |> padded_payload
     |> put_length
+  end
+
+  defp payload(%{type: @priority, payload: %{stream_dependency: dep, weight: w, exclusive: ex}}=frame, _ctx) do
+    ex = if ex, do: 1, else: 0
+    w  = w-1
+
+    %{frame | __payload: <<ex::1, dep::31, w::8>>, length: 5}
+  end
+
+  defp payload(%{type: @rst_stream, payload: %{error: err}}=frame, _ctx) do
+    %{frame | __payload: <<River.Errors.error_to_code(err)::32>>, length: 4 }
+  end
+
+  defp payload(%{type: @settings, payload: %{settings: settings}}=frame, _ctx) do
+    data = Enum.map_join(settings, fn({k,v})-> <<Settings.setting(k)::16, v::32>> end)
+    %{frame | __payload: data, length: byte_size(data), stream_id: 0}
+  end
+
+  defp payload(%{type: @window_update, payload: %{increment: inc}}=frame, _ctx) do
+    %{frame | __payload: <<1::1, inc::31>>, length: 4, stream_id: 0}
   end
 
   defp header(%{type: type, stream_id: stream_id, flags: flags, length: len}=frame) do

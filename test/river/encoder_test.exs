@@ -2,7 +2,7 @@ defmodule River.EncoderTest do
   use ExUnit.Case, async: true
   use River.FrameTypes
   alias River.{Frame, Encoder}
-  alias River.Frame.{Data, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
+  alias River.Frame.{Data, Continuation, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
 
   test "we can encode a data frame w/o padding" do
     assert <<11::24, @data::8, 1::8, 1::1, 3::31, "hello world">> =
@@ -25,6 +25,28 @@ defmodule River.EncoderTest do
               padding: 5
             }}
       )
+  end
+
+  describe "CONTINUATION frame" do
+    # +---------------------------------------------------------------+
+    # |                   Header Block Fragment (*)                 ...
+    # +---------------------------------------------------------------+
+
+    test "can be encoded" do
+      {:ok, enc_context} = HPack.Table.start_link(1000)
+      {:ok, ctx} = HPack.Table.start_link(4096)
+      headers = [{"x-hello", "world"}]
+      encoded = HPack.encode(headers, enc_context)
+      len     = byte_size(encoded)
+      assert <<len::24, @continuation::8, 0x4::8, 1::1, 15::31, encoded::binary>> ==
+        Encoder.encode(%Frame{
+              type: @continuation,
+              stream_id: 15,
+              flags: %{end_headers: true},
+              payload: %Continuation{
+                headers: headers
+              }}, ctx)
+    end
   end
 
   describe "GOAWAY frame" do
@@ -232,6 +254,77 @@ defmodule River.EncoderTest do
       result = Encoder.encode(frame, context.ctx)
       assert ^expected = binary_part(result, 0, byte_size(expected))
       assert len + 9 == byte_size(result)
+    end
+  end
+
+  describe "PRIORITY frame" do
+    test "can be encoded" do
+      assert <<5::24, @priority::8, 0::8, 1::1, 101::31, 1::1, 113::31, 99::8>> ==
+        Encoder.encode(%Frame{
+              type: @priority,
+              stream_id: 101,
+              payload: %Priority{
+                stream_dependency: 113,
+                weight: 100,
+                exclusive: true
+              }})
+    end
+  end
+
+  describe "RST_STREAM frame" do
+    test "can be encoded" do
+      assert <<4::24, @rst_stream::8, 0::8, 1::1, 19::31, 0x1::32>> ==
+        Encoder.encode(%Frame{
+              type: @rst_stream,
+              stream_id: 19,
+              payload: %RstStream{
+                error: :PROTOCOL_ERROR
+              }})
+    end
+  end
+
+  describe "SETTINGS frame" do
+    # +-------------------------------+
+    # |       Identifier (16)         |
+    # +-------------------------------+-------------------------------+
+    # |                        Value (32)                             |
+    # +---------------------------------------------------------------+
+    test "can be encoded" do
+      assert <<6::24, @settings::8, 0::8, 1::1, 0::31, 0x1::16, 4096::32>> ==
+        Encoder.encode(%Frame{
+              type: @settings,
+              payload: %Settings{
+                settings: [HEADER_TABLE_SIZE: 4096]
+              }})
+    end
+
+    test "can be encoded with multiple settings and an ACK flag" do
+      assert <<18::24, @settings::8, 0x1::8, 1::1, 0::31,
+        0x1::16, 4096::32, 0x2::16, 0::32, 0x3::16, 250::32>> ==
+        Encoder.encode(%Frame{
+              type: @settings,
+              flags: %{ack: true},
+              payload: %Settings{
+                settings: [
+                  HEADER_TABLE_SIZE: 4096,
+                  ENABLE_PUSH: 0,
+                  MAX_CONCURRENT_STREAMS: 250
+                ]
+              }})
+    end
+  end
+
+  describe "WINDOW_UPDATE frame" do
+    # +-+-------------------------------------------------------------+
+    # |R|              Window Size Increment (31)                     |
+    # +-+-------------------------------------------------------------+
+    test "can be encoded" do
+      assert <<4::24, @window_update::8, 0::8, 1::1, 0::31, 1::1, 10_000::31>> ==
+        Encoder.encode(%Frame{
+              type: @window_update,
+              payload: %WindowUpdate{
+                increment: 10_000
+              }})
     end
   end
 end

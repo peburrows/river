@@ -1,9 +1,10 @@
 defmodule River.Conn do
   # the name is confusing, but this is an external behaviour
   use Connection
+  use River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame}
+  alias River.{Conn, Frame, Frame.Settings, Encoder}
 
   @default_header_table_size 4096
 
@@ -75,7 +76,12 @@ defmodule River.Conn do
         River.Frame.http2_header
         :ssl.send(socket, River.Frame.http2_header)
 
-        frame = River.Frame.Settings.encode(conn.settings, 0)
+        # frame = River.Frame.Settings.encode(conn.settings, 0)
+        frame = Encoder.encode(%Frame{
+              type: @settings,
+              payload: %Settings{
+                settings: conn.settings
+              }})
 
         :ssl.send(socket, frame)
         {:ok, %{conn | socket: socket}}
@@ -111,17 +117,22 @@ defmodule River.Conn do
 
     :ssl.setopts(socket, [active: true])
 
-    headers = HPack.encode([
+    headers = [
       {":method", "GET"},
       {":scheme", "https"},
       {":path", path},
       {":authority", host},
       {"accept", "*/*"},
       {"user-agent", "River/0.0.1"}
-    ], ctx)
+    ]
 
-
-    f = River.Frame.encode(headers, stream_id, 0x1, (0x4 ||| 0x1))
+    f = Encoder.encode(%Frame{
+          type: @headers,
+          stream_id: stream_id,
+          flags: %{end_headers: true, end_stream: true},
+          payload: %Frame.Headers{
+            headers: headers
+          }}, ctx)
 
     # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
 

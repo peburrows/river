@@ -45,17 +45,17 @@ defmodule River.Frame.Settings do
             }, rest)
   end
 
-  defp name(0x1), do: :HEADER_TABLE_SIZE
-  defp name(0x2), do: :ENABLE_PUSH
-  defp name(0x3), do: :MAX_CONCURRENT_STREAMS
-  defp name(0x4), do: :INITIAL_WINDOW_SIZE
-  defp name(0x5), do: :MAX_FRAME_SIZE
-  defp name(0x6), do: :MAX_HEADER_LIST_SIZE
+  def name(0x1), do: :HEADER_TABLE_SIZE
+  def name(0x2), do: :ENABLE_PUSH
+  def name(0x3), do: :MAX_CONCURRENT_STREAMS
+  def name(0x4), do: :INITIAL_WINDOW_SIZE
+  def name(0x5), do: :MAX_FRAME_SIZE
+  def name(0x6), do: :MAX_HEADER_LIST_SIZE
 
-  defp setting(:HEADER_TABLE_SIZE), do: 0x1
-  defp setting(:ENABLE_PUSH), do: 0x2
-  defp setting(:MAX_CONCURRENT_STREAMS), do: 0x3
-  defp setting(:INITIAL_WINDOW_SIZE), do: 0x4
-  defp setting(:MAX_FRAME_SIZE), do: 0x5
-  defp setting(:MAX_HEADER_LIST_SIZE), do: 0x6
+  def setting(:HEADER_TABLE_SIZE), do: 0x1
+  def setting(:ENABLE_PUSH), do: 0x2
+  def setting(:MAX_CONCURRENT_STREAMS), do: 0x3
+  def setting(:INITIAL_WINDOW_SIZE), do: 0x4
+  def setting(:MAX_FRAME_SIZE), do: 0x5
+  def setting(:MAX_HEADER_LIST_SIZE), do: 0x6
 end

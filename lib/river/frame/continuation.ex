@@ -2,11 +2,7 @@ defmodule River.Frame.Continuation do
   alias River.{Frame, Frame.Headers}
 
   defstruct [
-    padding:   0,
     headers:   [],
-    exclusive: false,
-    stream_dependency: 0,
-    weight:    0
   ]
 
   defmodule Flags do
@@ -22,20 +18,10 @@ defmodule River.Frame.Continuation do
   end
 
   def decode(frame, payload, ctx) do
-    case Headers.decode(frame, payload, ctx) do
-      %Frame{payload: p}=frame ->
-        %{frame |
-          # super hacky, but convert the payload to a PushPromise
-          payload: %__MODULE__{
-            padding: p.padding,
-            headers: p.headers,
-            exclusive: p.exclusive,
-            stream_dependency: p.stream_dependency,
-            weight: p.weight
-          }
-         }
-      e ->
-        e
-    end
+    %{frame |
+      payload: %__MODULE__{
+        headers: HPack.decode(payload, ctx)
+      }
+    }
   end
 end
