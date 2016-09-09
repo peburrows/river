@@ -4,9 +4,7 @@ defmodule River.Frame.PushPromise do
   defstruct [
     padding:   0,
     headers:   [],
-    exclusive: false,
-    stream_dependency: 0,
-    weight:    0
+    promised_stream_id: nil
   ]
 
   defmodule Flags do
@@ -21,22 +19,40 @@ defmodule River.Frame.PushPromise do
     end
   end
 
-  def decode(frame, payload, ctx) do
-    case Headers.decode(frame, payload, ctx) do
-      %Frame{payload: p}=frame ->
+  def decode(%Frame{length: len, flags: %{padded: true}}=frame,
+    <<pl::8, _::1, prom_id::31, payload::binary>>, ctx) do
+
+    data_len = len - pl - 4 - 1
+    case payload do
+      <<data::binary-size(data_len), _pad::binary-size(pl)>> ->
         %{frame |
-          # super hacky, but convert the payload to a PushPromise
           payload: %__MODULE__{
-            padding: p.padding,
-            headers: p.headers,
-            exclusive: p.exclusive,
-            stream_dependency: p.stream_dependency,
-            weight: p.weight
+            headers: HPack.decode(data, ctx),
+            padding: pl,
+            promised_stream_id: prom_id
           }
          }
-      e ->
-        e
+      _ ->
+        {:error, :invalid_frame}
     end
   end
 
+  def decode(%Frame{length: len}=frame, <<_::1, prom_id::31, payload::binary>>, ctx) do
+    data_len = len - 4
+    case payload do
+      <<hbf::binary-size(data_len)>> ->
+        %{frame |
+          payload: %__MODULE__{
+            headers: HPack.decode(hbf, ctx),
+            promised_stream_id: prom_id
+          }
+         }
+      _ ->
+        {:error, :invalid_frame}
+    end
+  end
+
+  def decode(frame, payload, ctx) do
+    [frame, payload] |> IO.inspect
+  end
 end

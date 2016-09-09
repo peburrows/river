@@ -4,7 +4,7 @@ defmodule River.Frame do
 
   defstruct [
     payload: <<>>,
-    stream_id: nil,
+    stream_id: 0,
     type: nil,
     flags: %{},
     length: nil,
@@ -21,6 +21,8 @@ defmodule River.Frame do
         "flags: #{inspect frame.flags}",
         "length: #{frame.length}",
         "payload: #{inspect frame.payload}",
+        "__payload: #{inspect frame.__payload}",
+        "__header: #{inspect frame.__header}",
         "}"
       ], "\n\t"
     end

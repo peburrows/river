@@ -5,13 +5,19 @@ defmodule River.Frame.PushPromiseTest do
   setup do
     {:ok, ctx} = HPack.Table.start_link(4096)
     headers = [{":method", "GET"}]
-    {:ok, %{ctx: ctx, headers: headers, payload: HPack.encode(headers, ctx)}}
+    payload = <<1::1, 11::31>> <> HPack.encode(headers, ctx)
+    {:ok, %{ctx: ctx,
+            headers: headers,
+            payload: payload,
+           }
+    }
   end
 
   test "we can decode a frame from a non-padded payload", %{headers: headers, ctx: ctx, payload: payload} do
     assert %Frame{
       payload: %PushPromise{
-        headers: ^headers
+        headers: ^headers,
+        promised_stream_id: 11,
       }
     } = PushPromise.decode(%Frame{length: byte_size(payload)}, payload, ctx)
   end
@@ -21,20 +27,18 @@ defmodule River.Frame.PushPromiseTest do
       flags:   %{padded: true},
       payload: %PushPromise{
         headers: ^headers,
+        promised_stream_id: 11,
+        padding: 3,
       }
     } = PushPromise.decode(%Frame{length: (4+byte_size(payload)), flags: %{padded: true}}, <<3::8, payload::binary, "pad">>, ctx)
   end
 
-  test "stream dependency is propery extracted", %{headers: headers, ctx: ctx, payload: payload} do
-    payload = <<1::1, 5::31, 99::8, payload::binary>>
+  test "promised stream ID is propery extracted", %{headers: headers, ctx: ctx, payload: payload} do
     assert %Frame{
-      flags: %{priority: true},
       payload: %PushPromise{
         headers: ^headers,
-        stream_dependency: 5,
-        weight: 100,
-        exclusive: true
+        promised_stream_id: 11,
       }
-    } = PushPromise.decode(%Frame{length: byte_size(payload), flags: %{priority: true}}, payload, ctx)
+    } = PushPromise.decode(%Frame{length: byte_size(payload)}, payload, ctx)
   end
 end

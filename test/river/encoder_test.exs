@@ -63,6 +63,17 @@ defmodule River.EncoderTest do
   end
 
   describe "HEADERS frame" do
+    # +---------------+
+    # |Pad Length? (8)|
+    # +-+-------------+-----------------------------------------------+
+    # |E|                 Stream Dependency? (31)                     |
+    # +-+-------------+-----------------------------------------------+
+    # |  Weight? (8)  |
+    # +-+-------------+-----------------------------------------------+
+    # |                   Header Block Fragment (*)                 ...
+    # +---------------------------------------------------------------+
+    # |                           Padding (*)                       ...
+    # +---------------------------------------------------------------+
     setup do
       {:ok, enc_ctx} = HPack.Table.start_link(4096)
       {:ok, ctx} = HPack.Table.start_link(4096)
@@ -99,6 +110,155 @@ defmodule River.EncoderTest do
 
       assert <<^len::24, @headers::8, 0x8::8, 1::1, 9::31, pl::8, ^encoded::binary-size(enc_len), _pad::binary-size(pl)>> =
         Encoder.encode(%{context.frame | flags: %{padded: true}, payload: %{context.frame.payload | padding: pl}}, context.ctx)
+    end
+
+    test "we can encode w/weight", context do
+      encoded = context.encoded
+      enc_len = byte_size(encoded)
+      len     = enc_len + 5
+
+      frame = %{context.frame |
+                flags: %{priority: true},
+                payload: %{context.frame.payload |
+                           stream_dependency: 15,
+                           weight: 100
+                }
+               }
+
+      expected = <<len::24, @headers::8, 0x20::8, 1::1, frame.stream_id::31, 0::1, 15::31, 99::8, encoded::binary-size(enc_len)>>
+      assert ^expected =
+        Encoder.encode(frame, context.ctx)
+    end
+
+    test "we can encode w/weight & w/padding", context do
+      encoded = context.encoded
+      enc_len = byte_size(encoded)
+      pl      = 15
+      len     = enc_len + pl + 5 + 1
+
+      frame   = %{context.frame |
+                  flags: %{priority: true, padded: true},
+                  payload: %{context.frame.payload |
+                             stream_dependency: 15,
+                             weight: 100,
+                             exclusive: true,
+                             padding: pl
+                  }
+                 }
+
+      expected = <<len::24, @headers::8, 0x28::8, 1::1,
+        frame.stream_id::31, pl::8, 1::1,
+        frame.payload.stream_dependency::31,
+        (frame.payload.weight-1)::8, encoded::binary-size(enc_len)>>
+
+      result = Encoder.encode(frame, context.ctx)
+      assert ^expected = binary_part(result, 0, byte_size(expected))
+      assert len + 9 == byte_size(result)
+    end
+  end
+
+  describe "PING frame" do
+    # +---------------------------------------------------------------+
+    # |                      Opaque Data (64)                         |
+    # +---------------------------------------------------------------+
+
+    test "we can encode" do
+      frame = %Frame{type: @ping, flags: %{ack: true}}
+      assert <<8::24, @ping::8, 0x1::8, 1::1, 0::31, _::binary-size(8)>> =
+        Encoder.encode(frame)
+    end
+  end
+
+  describe "PUSH_PROMISE frame" do
+    # +---------------+
+    # |Pad Length? (8)|
+    # +-+-------------+-----------------------------------------------+
+    # |R|                  Promised Stream ID (31)                    |
+    # +-+-----------------------------+-------------------------------+
+    # |                   Header Block Fragment (*)                 ...
+    # +---------------------------------------------------------------+
+    # |                           Padding (*)                       ...
+    # +---------------------------------------------------------------+
+    setup do
+      {:ok, enc_ctx} = HPack.Table.start_link(4096)
+      {:ok, ctx} = HPack.Table.start_link(4096)
+      headers = [{":authority", "google.com"}, {":method", "GET"}]
+      encoded = HPack.encode(headers, enc_ctx)
+      {:ok,
+       %{
+         ctx:     ctx,
+         headers: headers,
+         encoded: encoded,
+         frame:   %Frame{
+           stream_id: 9,
+           type: @push_promise,
+           payload: %PushPromise{
+             headers: headers
+           }
+         }
+       }
+      }
+    end
+
+    test "we can encode w/o padding or weight", context do
+      encoded = context.encoded
+      len = byte_size(encoded)
+      assert <<^len::24, @push_promise::8, 0::8, 1::1, 9::31, ^encoded::binary>> =
+        Encoder.encode(context.frame, context.ctx)
+    end
+
+    test "we can encode w/padding", context do
+      encoded = context.encoded
+      enc_len = byte_size(encoded)
+      pl = 10
+      len = byte_size(context.encoded) + 10 + 1
+
+      assert <<^len::24, @push_promise::8, 0x8::8, 1::1, 9::31, pl::8, ^encoded::binary-size(enc_len), _pad::binary-size(pl)>> =
+        Encoder.encode(%{context.frame | flags: %{padded: true}, payload: %{context.frame.payload | padding: pl}}, context.ctx)
+    end
+
+    test "we can encode w/weight", context do
+      encoded = context.encoded
+      enc_len = byte_size(encoded)
+      len     = enc_len + 5
+
+      frame = %{context.frame |
+                flags: %{priority: true},
+                payload: %{context.frame.payload |
+                           stream_dependency: 15,
+                           weight: 100
+                }
+               }
+
+      expected = <<len::24, @push_promise::8, 0x20::8, 1::1, frame.stream_id::31, 0::1, 15::31, 99::8, encoded::binary-size(enc_len)>>
+      assert ^expected =
+        Encoder.encode(frame, context.ctx)
+    end
+
+    test "we can encode w/weight & w/padding", context do
+      encoded = context.encoded
+      enc_len = byte_size(encoded)
+      pl      = 15
+      len     = enc_len + pl + 5 + 1
+
+      frame   = %{context.frame |
+                  flags: %{priority: true, padded: true},
+                  payload: %{context.frame.payload |
+                             stream_dependency: 15,
+                             weight: 100,
+                             exclusive: true,
+                             padding: pl
+                  }
+                 }
+
+      expected = <<len::24, @headers::8, 0x28::8, 1::1,
+        frame.stream_id::31, pl::8, 1::1,
+        frame.payload.stream_dependency::31,
+        (frame.payload.weight-1)::8, encoded::binary-size(enc_len)>>
+
+      result = Encoder.encode(frame, context.ctx)
+      assert ^expected = binary_part(result, 0, byte_size(expected))
+      assert len + 9 == byte_size(result)
     end
   end
 end

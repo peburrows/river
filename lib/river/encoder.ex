@@ -14,12 +14,10 @@ defmodule River.Encoder do
     head <> body
   end
 
-  defp payload(%{type: @data, payload: %{data: data, padding: pl}, flags: %{padded: true}}=frame, _ctx) do
-    %{frame | length: byte_size(data) + pl + 1, __payload: <<pl::8, data::binary, :crypto.strong_rand_bytes(pl)::binary-size(pl)>>}
-  end
-
   defp payload(%{type: @data, payload: %{data: data}}=frame, _ctx) do
-    %{frame | length: byte_size(data), __payload: <<data::binary>>}
+    %{frame | __payload: data}
+    |> padded_payload
+    |> put_length
   end
 
   defp payload(%{type: @goaway, payload: %{error: err, last_stream_id: last_sid, debug: debug}}=frame, _ctx) do
@@ -31,18 +29,35 @@ defmodule River.Encoder do
     %{frame | __payload: body, length: byte_size(body)}
   end
 
-  defp payload(%{type: @headers, payload: %{headers: headers, padding: pl}, flags: %{padded: true}}=frame, ctx) do
-    encoded = HPack.encode(headers, ctx)
-    %{frame | length: byte_size(encoded) + pl + 1, __payload: <<pl::8, encoded::binary, :crypto.strong_rand_bytes(pl)::binary-size(pl)>>}
+  defp payload(%{type: @headers, payload: %{headers: headers}}=frame, ctx) do
+    %{frame | __payload: HPack.encode(headers, ctx)}
+    |> weighted_payload
+    |> padded_payload
+    |> put_length
   end
 
-  defp payload(%{type: @headers, payload: %{headers: headers}}=frame, ctx) do
-    encoded = HPack.encode(headers, ctx)
-    %{frame | __payload: encoded, length: byte_size(encoded)}
+  defp payload(%{type: @ping, flags: flags}=frame, _ctx) do
+    %{frame | __payload: :binary.copy(<<0>>, 8), length: 8}
   end
 
   defp header(%{type: type, stream_id: stream_id, flags: flags, length: len}=frame) do
     %{frame | __header: <<len::24, type::8, River.Flags.encode(flags)::8, 1::1, stream_id::31>>}
+  end
+
+  defp weighted_payload(%{payload: %{weight: nil}}=frame), do: frame
+  defp weighted_payload(%{__payload: payload, payload: %{weight: w, stream_dependency: dep, exclusive: ex}}=frame) do
+    ex = if ex, do: 1, else: 0
+    w  = w-1
+    %{frame | __payload: <<ex::1, dep::31, w::8>> <> payload}
+  end
+
+  defp padded_payload(%{payload: %{padding: 0}}=frame), do: frame
+  defp padded_payload(%{__payload: payload, payload: %{padding: pl}}=frame) do
+    %{frame | __payload: <<pl::8>> <> payload <> :crypto.strong_rand_bytes(pl) }
+  end
+
+  defp put_length(%{__payload: payload}=frame) do
+    %{frame | length: byte_size(payload)}
   end
 
 end

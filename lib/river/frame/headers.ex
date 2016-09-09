@@ -5,8 +5,8 @@ defmodule River.Frame.Headers do
     padding:   0,
     headers:   [],
     exclusive: false,
-    stream_dependency: 0,
-    weight:    0
+    stream_dependency: nil,
+    weight:    nil
   ]
 
   defmodule Flags do

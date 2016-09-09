@@ -96,14 +96,15 @@ defmodule River.FrameTest do
     {:ok, ctx} = HPack.Table.start_link(4096)
     headers    = [{":method", "GET"}]
     payload    = HPack.encode(headers, ctx)
-    length     = byte_size(payload)
-    frame      = <<length::24, @push_promise::8, 0x1::8, 1::1, 21::31, payload::binary>>
+    length     = byte_size(payload) + 4
+    frame      = <<length::24, @push_promise::8, 0x1::8, 1::1, 21::31, 1::1, 25::31, payload::binary>>
 
     assert {:ok, %Frame{
                length:   ^length,
                stream_id: 21,
                flags: %{end_stream: true},
                payload: %PushPromise{
+                 promised_stream_id: 25,
                  headers: ^headers,
                }
             }, ""} = Frame.decode(frame, ctx)
