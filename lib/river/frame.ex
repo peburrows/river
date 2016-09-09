@@ -73,6 +73,10 @@ defmodule River.Frame do
     PushPromise.decode(frame, payload, ctx)
   end
 
+  defp decode_payload(%{type: @priority}=frame, payload, _ctx) do
+    Priority.decode(frame, payload)
+  end
+
   defp decode_payload(%{type: @rst_stream}=frame, payload, _ctx) do
     RstStream.decode(frame, payload)
   end
@@ -88,7 +92,7 @@ defmodule River.Frame do
   defp parse_flags(@data, flags),
     do: Data.Flags.parse(flags)
 
-  defp parse_flags(@goaway, flags),
+  defp parse_flags(@goaway, _flags),
     do: %{}
 
   defp parse_flags(@headers, flags),
@@ -97,16 +101,19 @@ defmodule River.Frame do
   defp parse_flags(@ping, flags),
     do: Ping.Flags.parse(flags)
 
+  defp parse_flags(@priority, _flags),
+    do: %{}
+
   defp parse_flags(@push_promise, flags),
     do: PushPromise.Flags.parse(flags)
 
-  defp parse_flags(@rst_stream, flags),
+  defp parse_flags(@rst_stream, _flags),
     do: %{}
 
   defp parse_flags(@settings, flags),
     do: Settings.Flags.parse(flags)
 
-  defp parse_flags(@window_update, flags),
+  defp parse_flags(@window_update, _flags),
     do: %{}
 
   defp frame_type(@settings),     do: :SETTINGS
