@@ -9,10 +9,7 @@ defmodule River.Frame.Continuation do
     defstruct [:end_stream, :end_headers, :padded, :priority]
     def parse(flags) do
       %__MODULE__{
-        end_stream:  River.Flags.has_flag?(flags, 0x1),
         end_headers: River.Flags.has_flag?(flags, 0x4),
-        padded:      River.Flags.has_flag?(flags, 0x8),
-        priority:    River.Flags.has_flag?(flags, 0x20)
       }
     end
   end
