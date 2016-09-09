@@ -167,8 +167,8 @@ defmodule River.Conn do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
         decode_frames(conn, more, ctx, [frame | stack])
-      {:error, :invalid_frame} ->
-        { %{conn | buffer: payload}, Enum.reverse(stack) }
+      {:error, :invalid_frame, buffer} ->
+        { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
 
