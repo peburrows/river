@@ -6,8 +6,8 @@ defmodule River.Frame do
     payload: <<>>,
     stream_id: nil,
     type: nil,
-    flags: [],
-    length: 0
+    flags: %{},
+    length: nil
   ]
 
   defimpl Inspect, for: River.Frame do
@@ -26,15 +26,29 @@ defmodule River.Frame do
 
   def http2_header, do: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-  def encode(value, stream_id, type, flags \\ 0) do
-    <<
-      byte_size(value)::size(24),
-      type::size(8),
-      flags::size(8),
-      0::size(1), # emtpy bit
-      stream_id::size(31),
-      value::binary
-    >>
+  def encode(%__MODULE__{}=frame) do
+    header(frame) <> payload(frame)
+  end
+
+  defp header(%{type: type, stream_id: sid, flags: %{padded: true}=flags, payload: %Data{data: data, padding: pl}}) do
+    len = byte_size(data) + pl + 1
+    <<len::24, type::8, River.Flags.encode(flags)::8, 1::1, sid::31>>
+  end
+
+  defp header(%{type: type, stream_id: sid, flags: flags, payload: %Data{data: data}}) do
+    <<byte_size(data)::24, type::8, River.Flags.encode(flags)::8, 1::1, sid::31>>
+  end
+
+  defp header(%{type: type, stream_id: sid, flags: flags, length: len}) do
+    <<len::24, type::8, River.Flags.encode(flags)::8, 1::1, sid::31>>
+  end
+
+  defp payload(%{type: @data, flags: %{padded: true}, payload: %{data: data, padding: pl}}) do
+    <<pl::8, data::binary, :crypto.strong_rand_bytes(pl)::binary>>
+  end
+
+  defp payload(%{type: @data, payload: %{data: data}}) do
+    <<data::binary>>
   end
 
   def decode(<<>>, _ctx), do: {:ok, [], <<>>}

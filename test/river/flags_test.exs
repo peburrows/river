@@ -30,6 +30,20 @@ defmodule River.FlagsTest do
     assert [] == Flags.flags(@goaway, 0x1)
   end
 
+  describe "encoding" do
+    test "we can encode a single flag successfully" do
+      assert 0x1 == Flags.encode(%{end_stream: true})
+    end
+
+    test "we can encode multiple flags" do
+      assert 0x5 == Flags.encode(%{end_stream: true, end_headers: true})
+    end
+
+    test "encoding flags does not include flags set to false" do
+      assert 0x1 == Flags.encode(%{end_stream: true, padded: false})
+    end
+  end
+
   describe "Flags.has_flag?" do
     test "returns the correct value when checking raw flag" do
       assert true  == Flags.has_flag?(0x5, 0x1)

@@ -3,6 +3,12 @@ defmodule River.Flags do
   use River.FrameTypes
   alias River.{Frame}
 
+  def encode(%{}=flags) do
+    flags
+    |> Enum.filter_map(fn({_k, v}) -> v end, fn({k, _v})-> key_to_val(k) end)
+    |> Enum.reduce(0, fn(el, acc) -> el ||| acc end)
+  end
+
   def flags(@settings, f) do
     get_flags([], f, {0x1, :ACK})
   end
@@ -47,4 +53,10 @@ defmodule River.Flags do
       _     -> acc
     end
   end
+
+  defp key_to_val(:ack),         do: 0x1
+  defp key_to_val(:end_stream),  do: 0x1
+  defp key_to_val(:end_headers), do: 0x4
+  defp key_to_val(:padded),      do: 0x8
+  defp key_to_val(:priority),    do: 0x20
 end
