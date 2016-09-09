@@ -40,6 +40,13 @@ defmodule River.Encoder do
     %{frame | __payload: :binary.copy(<<0>>, 8), length: 8}
   end
 
+  defp payload(%{type: @push_promise, payload: %{headers: headers, promised_stream_id: prom_id}}=frame, ctx) do
+    [prom_id, prom_id] |> IO.inspect
+    %{frame | __payload: <<1::1, prom_id::31>> <> HPack.encode(headers, ctx)}
+    |> padded_payload
+    |> put_length
+  end
+
   defp header(%{type: type, stream_id: stream_id, flags: flags, length: len}=frame) do
     %{frame | __header: <<len::24, type::8, River.Flags.encode(flags)::8, 1::1, stream_id::31>>}
   end
