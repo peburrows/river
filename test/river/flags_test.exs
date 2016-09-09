@@ -6,28 +6,28 @@ defmodule River.FlagsTest do
   alias River.{Flags, Frame}
 
   test "extracting the ACK flag from a settings frame" do
-    assert [:ACK] == Flags.flags(@settings, 0x1)
+    assert %{ack: true} == Flags.flags(@settings, 0x1)
   end
 
   test "extracting the :END_STREAM flag from a data frame" do
-    assert [:END_STREAM] == Flags.flags(@data, 0x1)
+    assert %{end_stream: true} == Flags.flags(@data, 0x1)
 
     # data frames only have one valid flag, so make sure we ignore others
-    assert [:END_STREAM] == Flags.flags(@data, Bitwise.|||(0x1, 0x4) )
+    assert %{end_stream: true} == Flags.flags(@data, Bitwise.|||(0x1, 0x4) )
   end
 
   test "extracting flags from a headers frame" do
-    assert [:END_STREAM] == Flags.flags(@headers, 0x1)
-    assert [:END_HEADERS, :END_STREAM] == Flags.flags(@headers, Bitwise.|||(0x1, 0x4))
-    assert [:PRIORITY, :PADDED] == Flags.flags(@headers, Bitwise.|||(0x8, 0x20))
+    assert %{end_stream: true} == Flags.flags(@headers, 0x1)
+    assert %{end_stream: true, end_headers: true} == Flags.flags(@headers, Bitwise.|||(0x1, 0x4))
+    assert %{priority: true, padded: true} == Flags.flags(@headers, Bitwise.|||(0x8, 0x20))
   end
 
   test "extracting flags from rst_stream frame" do
-    assert [] == Flags.flags(@rst_stream, 0x1)
+    assert %{} == Flags.flags(@rst_stream, 0x1)
   end
 
   test "extracting flags from goaway frame" do
-    assert [] == Flags.flags(@goaway, 0x1)
+    assert %{} == Flags.flags(@goaway, 0x1)
   end
 
   describe "encoding" do
@@ -52,13 +52,14 @@ defmodule River.FlagsTest do
     end
 
     test "returns the correct value when checking a list of parsed flags" do
-      assert true  == Flags.has_flag?([:END_STREAM], :END_STREAM)
-      assert true  == Flags.has_flag?([:END_HEADERS], :END_HEADERS)
-      assert false == Flags.has_flag?([:END_STREAM], :NOPE)
+      assert true  == Flags.has_flag?(%{end_stream: true}, :end_stream)
+      assert true  == Flags.has_flag?(%{end_headers: true}, :end_headers)
+      assert false == Flags.has_flag?(%{end_stream: true}, :nope)
     end
 
     test "returns the correct value when checking a frame for flags" do
-      assert true  == Flags.has_flag?(%Frame{flags: [:END_STREAM]}, :END_STREAM)
+      assert true  == Flags.has_flag?(%Frame{flags: %{end_stream: true}}, :end_stream)
+      assert true  == Flags.has_flag?(%Frame{flags: 0x1}, :end_stream)
       assert true  == Flags.has_flag?(%Frame{flags: 0x5}, 0x1)
     end
   end
