@@ -9,16 +9,6 @@ defmodule River.FrameTest do
            <<0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a::192>>
   end
 
-  # test "encoding a simple frame" do
-  #   stream_id = 123
-  #   assert <<5::size(24),
-  #     0x4::size(8),
-  #     _flags::size(8),
-  #     0::size(1), ^stream_id::size(31),
-  #     "hello">> = River.Frame.encode("hello", stream_id, 0x4)
-  # end
-
-
   test "decoding a single frame with excess data" do
     data = <<0::24, 4::8, 1::8, 0::1, 15::31>> <> "extra"
     assert {:ok,
@@ -200,7 +190,8 @@ defmodule River.FrameTest do
               stream_id: 0,
               type: @goaway,
               payload: %GoAway{
-                error: :PROTOCOL_ERROR
+                error: :PROTOCOL_ERROR,
+                last_stream_id: 101
               }}
         )
     end
