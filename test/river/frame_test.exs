@@ -153,47 +153,4 @@ defmodule River.FrameTest do
             }, ""} = Frame.decode(frame, :ctx)
   end
 
-  describe "encoding" do
-    test "we can encode a data frame w/o padding" do
-      assert <<11::24, @data::8, 1::8, 1::1, 3::31, "hello world">> =
-        Frame.encode(%Frame{
-              stream_id: 3,
-              type: @data,
-              flags: %{end_stream: true},
-              payload: %Data{data: "hello world"}}
-        )
-    end
-
-    test "we can encode a data frame w/padding" do
-      assert <<11::24, @data::8, 0x8::8, 1::1, 5::31, 5::8, "hello", _::binary-size(5)>> =
-        Frame.encode(%Frame{
-              stream_id: 5,
-              type: @data,
-              flags: %{padded: true},
-              payload: %Data{
-                data: "hello",
-                padding: 5
-              }}
-        )
-    end
-
-    test "we can encode a GOAWAY frame" do
-      # +-+-------------------------------------------------------------+
-      # |R|                  Last-Stream-ID (31)                        |
-      # +-+-------------------------------------------------------------+
-      # |                      Error Code (32)                          |
-      # +---------------------------------------------------------------+
-      # |                  Additional Debug Data (*)                    |
-      # +---------------------------------------------------------------+
-      assert <<8::24, @goaway::8, 0::8, 1::1, 0::31, 1::1, 101::31, 0x1::32>> =
-        Frame.encode(%Frame{
-              stream_id: 0,
-              type: @goaway,
-              payload: %GoAway{
-                error: :PROTOCOL_ERROR,
-                last_stream_id: 101
-              }}
-        )
-    end
-  end
 end
