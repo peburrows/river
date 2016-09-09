@@ -61,10 +61,8 @@ defmodule River.Conn do
       {:ok, response} ->
         {:ok, response}
       other ->
-        IO.puts "we got a different message from someone: #{inspect other}"
         other
     after timeout -> # eventually, we need to customize the timeout
-      IO.puts "well, we got nothing after #{timeout}ms"
       {:error, :timeout}
     end
   end
@@ -72,25 +70,18 @@ defmodule River.Conn do
   def connect(info, %Conn{host: host}=conn) do
     host = String.to_charlist(host)
 
-    IO.puts "about to call the things! :: #{inspect host}"
     case :ssl.connect(host, 443, ssl_options(host)) do
       {:ok, socket} ->
-        IO.puts "connected alright!"
         River.Frame.http2_header
         :ssl.send(socket, River.Frame.http2_header)
 
         frame = River.Frame.Settings.encode(conn.settings, 0)
 
-        # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(frame, case: :lower)}#{IO.ANSI.reset}"
-
         :ssl.send(socket, frame)
-        IO.puts "the connection was established for #{host}"
         {:ok, %{conn | socket: socket}}
       {:error, _} = error ->
-        IO.puts "connection was no good for some reason #{inspect error}"
         {:backoff, 1000, conn}
       other ->
-        IO.puts "the connection was just weird? :: #{inspect other}"
         {:backoff, 1000, conn}
     end
   end
@@ -103,7 +94,6 @@ defmodule River.Conn do
 
   def handle_cast({:get, path}, conn), do: handle_cast({:get, path, nil}, conn)
   def handle_cast({:get, path, parent}, conn) do
-    IO.puts "we are being asked to GET"
     # the problem here might be that this call will block until it fires
     # off the request, which is less than ideal. What we should do here is
     # spin up a RequestHandler of some sort to trigger it and handle things

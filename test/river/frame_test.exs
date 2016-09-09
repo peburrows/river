@@ -40,7 +40,7 @@ defmodule River.FrameTest do
     assert {:ok, %Frame{
                flags:   %{padded: true},
                stream_id: 13,
-               payload: %Frame.Data{
+               payload: %Data{
                  padding: 5,
                  data:    "hello"
                }
@@ -89,6 +89,19 @@ defmodule River.FrameTest do
             }, ""} = Frame.decode(frame, :ctx)
   end
 
+  test "decoding a PRIORITY frame" do
+    frame = <<5::24, @priority::8, 0::8, 1::1, 15::31, 1::1, 21::31, 100::8>>
+    assert {:ok, %Frame{
+               length: 5,
+               stream_id: 15,
+               payload: %Priority{
+                 stream_dependency: 21,
+                 weight: 101,
+                 exclusive: true
+               }
+            }, ""} = Frame.decode(frame, :ctx)
+  end
+
   test "decoding a PUSH_PROMISE frame" do
     {:ok, ctx} = HPack.Table.start_link(4096)
     headers    = [{":method", "GET"}]
@@ -130,7 +143,7 @@ defmodule River.FrameTest do
               type:      0x4,
               stream_id: 15,
               flags:     %{ack: true},
-              payload:   %Frame.Settings{
+              payload:   %Settings{
                 settings: [
                   HEADER_TABLE_SIZE: 4096
                 ]
