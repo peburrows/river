@@ -1,8 +1,7 @@
 defmodule River.Client do
-  def get(uri, timeout \\ 5000)
+  def get(uri, timeout \\ 30_000)
   def get(%URI{}=uri, timeout) do
     {:ok, conn} = River.Conn.create(uri.host)
-    IO.puts "we are getting: #{uri.host} :: #{inspect conn}"
     River.Conn.get(conn, uri.path, timeout)
   end
   def get(url, timeout), do: get(URI.parse(url), timeout)

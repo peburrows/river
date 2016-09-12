@@ -31,7 +31,8 @@ defmodule River.Frame do
   def http2_header, do: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
   def decode(<<>>, _ctx), do: {:ok, [], <<>>}
-  def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>>, ctx) do
+  def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>>=packet, ctx) do
+    ["length, type, flags, stream", length, type, flags, stream, byte_size(packet)] |> IO.inspect
     case payload do
       <<data::binary-size(length), tail::binary>> ->
         frame = %__MODULE__{length: length,
@@ -41,7 +42,7 @@ defmodule River.Frame do
                            } |> decode_payload(data, ctx)
         {:ok, frame, tail}
       _ ->
-        {:error, :invalid_frame, payload}
+        {:error, :invalid_frame, packet}
     end
   end
 

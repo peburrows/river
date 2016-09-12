@@ -148,10 +148,11 @@ defmodule River.Conn do
       host:     host,
     } = conn
 
-
+    IO.puts "decoding frame: #{inspect(prev <> payload)}"
     {new_conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
 
     for f <- frames do
+      handle_frame(conn, f)
       {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
 
       River.StreamHandler.add_frame(pid, f)
@@ -160,14 +161,31 @@ defmodule River.Conn do
     {:noreply, new_conn}
   end
 
+  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}}=frame) do
+    f = Encoder.encode(%Frame{
+          type: @settings,
+          stream_id: 0,
+          flags: %{ack: true},
+          payload: %Settings{
+            settings: []
+          }})
+    IO.puts "acking settings frame"
+    :ssl.send(conn.socket, f)
+    conn
+  end
+
+  defp handle_frame(conn, _frame), do: conn
+
   defp decode_frames(conn, <<>>, _ctx, stack),
     do: {conn, Enum.reverse(stack)}
 
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
+        IO.puts "valid frame: #{inspect frame}"
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->
+        IO.puts "invalid frame: #{inspect buffer}"
         { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
