@@ -47,8 +47,8 @@ defmodule River.Conn do
               send_ctx: send_ctx,
               recv_ctx: recv_ctx,
               settings: [
-                MAX_CONCURRENT_STREAMS: 100,
-                INITIAL_WINDOW_SIZE: 65535,
+                MAX_CONCURRENT_STREAMS: 250,
+                INITIAL_WINDOW_SIZE: 65_535,
                 HEADER_TABLE_SIZE: @default_header_table_size,
               ],
              }
@@ -134,13 +134,11 @@ defmodule River.Conn do
             headers: headers
           }}, ctx)
 
-    # IO.puts "#{IO.ANSI.green_background}#{Base.encode16(f, case: :lower)}#{IO.ANSI.reset}"
-
     :ssl.send(socket, f)
     {:noreply, %{conn | stream_id: stream_id, streams: streams+1 } }
   end
 
-  def handle_info({:ssl, _, payload} = msg, conn) do
+  def handle_info({:ssl, what, payload} = msg, conn) do
     %{
       recv_ctx: ctx,
       socket:   socket,
@@ -148,17 +146,21 @@ defmodule River.Conn do
       host:     host,
     } = conn
 
-    IO.puts "decoding frame: #{inspect(prev <> payload)}"
-    {new_conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
+    # ["packet: ", byte_size(payload), payload] |> IO.inspect
+    {conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
 
+    # don't love that we loop over these after we get them back.
+    # instead, we should do all this work as we receive each frame
+    # in the decode_frames function
     for f <- frames do
-      handle_frame(conn, f)
+      # f |> IO.inspect
+      conn = handle_frame(conn, f)
       {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
 
       River.StreamHandler.add_frame(pid, f)
     end
 
-    {:noreply, new_conn}
+    {:noreply, conn}
   end
 
   defp handle_frame(conn, %{type: @settings, flags: %{ack: false}}=frame) do
@@ -169,29 +171,30 @@ defmodule River.Conn do
           payload: %Settings{
             settings: []
           }})
-    IO.puts "acking settings frame"
     :ssl.send(conn.socket, f)
-    conn
+    %{conn | settings: conn.settings ++ frame.payload.settings}
+  end
+
+  defp handle_frame(conn, %{flags: %{end_stream: true}}) do
+    %{conn | streams: conn.streams-1}
   end
 
   defp handle_frame(conn, _frame), do: conn
 
   defp decode_frames(conn, <<>>, _ctx, stack),
-    do: {conn, Enum.reverse(stack)}
+    do: {%{conn | buffer: <<>>}, Enum.reverse(stack)}
 
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
-        IO.puts "valid frame: #{inspect frame}"
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->
-        IO.puts "invalid frame: #{inspect buffer}"
+        # ["incomplete frame", byte_size(buffer), buffer] |> IO.inspect
         { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
 
   def handle_info(msg, conn) do
-    IO.puts "unhandled message: #{inspect msg}"
     {:noreply, conn}
   end
 

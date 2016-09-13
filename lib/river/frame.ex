@@ -32,7 +32,7 @@ defmodule River.Frame do
 
   def decode(<<>>, _ctx), do: {:ok, [], <<>>}
   def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>>=packet, ctx) do
-    ["length, type, flags, stream", length, type, flags, stream, byte_size(packet)] |> IO.inspect
+    # ["length, type, flags, stream", length, type, flags, stream, byte_size(packet)] |> IO.inspect
     case payload do
       <<data::binary-size(length), tail::binary>> ->
         frame = %__MODULE__{length: length,
