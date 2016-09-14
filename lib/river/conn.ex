@@ -7,7 +7,9 @@ defmodule River.Conn do
   alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder}
 
   @default_header_table_size 4096
-  @initial_window_size 2147483647
+  # for some reason, I can't get the golang server to respect the initial window
+  @initial_window_size 65_535
+  # @max_frame_size 16_777_215
 
   defstruct [
     host:      nil,
@@ -15,7 +17,7 @@ defmodule River.Conn do
     send_ctx:  nil,
     recv_ctx:  nil,
     send_window: 0,
-    recv_window: 65_535,
+    recv_window: @initial_window_size,
     buffer:    "",
     socket:    nil,
     stream_id: -1,
@@ -51,9 +53,9 @@ defmodule River.Conn do
              recv_ctx: recv_ctx,
              settings: [
                MAX_CONCURRENT_STREAMS: 250,
-               INITIAL_WINDOW_SIZE: 65_535,
-               # INITIAL_WINDOW_SIZE: 2147483647,
+               INITIAL_WINDOW_SIZE: @initial_window_size,
                HEADER_TABLE_SIZE: @default_header_table_size,
+               # MAX_FRAME_SIZE: @max_frame_size,
              ],
             }
 
@@ -155,11 +157,10 @@ defmodule River.Conn do
       host:     host,
     } = conn
 
-    ["packet: ", byte_size(payload), payload] |> IO.inspect
-    # {conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
+    # ["packet: ", byte_size(payload), payload] |> IO.inspect
     conn = decode_frames(conn, prev <> payload, ctx, [])
 
-    ["after", conn] |> IO.inspect
+    # ["after", conn] |> IO.inspect
     {:noreply, conn}
   end
 
@@ -176,23 +177,21 @@ defmodule River.Conn do
   end
 
   defp handle_frame(%{recv_window: window}=conn, %{type: @data, length: len, stream_id: stream}) do
-    # we add 9 to the length to account for the frame header
     window = window - len
     IO.puts "the window: #{inspect window}"
 
-    # if window <= 10_000 do
     if window <= 0 do
       frame1 = %Frame{
         type: @window_update,
         stream_id: stream,
         payload: %WindowUpdate{
-          increment: 65_535
+          increment: @initial_window_size
         }}
 
-      IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
+      # IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
       :ssl.send(conn.socket, Encoder.encode(frame1))
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
-      %{conn | recv_window: window + 65_535}
+      %{conn | recv_window: @initial_window_size}
     else
       IO.puts "we still have room on the window: #{inspect window}"
       %{conn | recv_window: window}
