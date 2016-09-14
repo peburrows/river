@@ -67,8 +67,8 @@ defmodule River.Encoder do
     %{frame | __payload: data, length: byte_size(data), stream_id: 0}
   end
 
-  defp payload(%{type: @window_update, payload: %{increment: inc}}=frame, _ctx) do
-    %{frame | __payload: <<1::1, inc::31>>, length: 4, stream_id: 0}
+  defp payload(%{type: @window_update, stream_id: stream, payload: %{increment: inc}}=frame, _ctx) do
+    %{frame | __payload: <<1::1, inc::31>>, length: 4, stream_id: stream}
   end
 
   defp header(%{type: type, stream_id: stream_id, flags: flags, length: len}=frame) do

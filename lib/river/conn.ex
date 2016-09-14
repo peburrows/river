@@ -7,6 +7,7 @@ defmodule River.Conn do
   alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder}
 
   @default_header_table_size 4096
+  @initial_window_size 2147483647
 
   defstruct [
     host:      nil,
@@ -50,8 +51,8 @@ defmodule River.Conn do
              recv_ctx: recv_ctx,
              settings: [
                MAX_CONCURRENT_STREAMS: 250,
-               # INITIAL_WINDOW_SIZE: 65_535,
-               INITIAL_WINDOW_SIZE: 2147483647,
+               INITIAL_WINDOW_SIZE: 65_535,
+               # INITIAL_WINDOW_SIZE: 2147483647,
                HEADER_TABLE_SIZE: @default_header_table_size,
              ],
             }
@@ -155,15 +156,8 @@ defmodule River.Conn do
     } = conn
 
     ["packet: ", byte_size(payload), payload] |> IO.inspect
-    {conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
-
-    # don't love that we loop over these after we get them back.
-    # instead, we should do all this work as we receive each frame
-    # in the decode_frames function
-    # for f <- frames do
-    #   conn = handle_frame(conn, f)
-    #   ["for loop", conn] |> IO.inspect
-    # end
+    # {conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
+    conn = decode_frames(conn, prev <> payload, ctx, [])
 
     ["after", conn] |> IO.inspect
     {:noreply, conn}
@@ -182,7 +176,9 @@ defmodule River.Conn do
   end
 
   defp handle_frame(%{recv_window: window}=conn, %{type: @data, length: len, stream_id: stream}) do
+    # we add 9 to the length to account for the frame header
     window = window - len
+    IO.puts "the window: #{inspect window}"
 
     # if window <= 10_000 do
     if window <= 0 do
@@ -190,21 +186,13 @@ defmodule River.Conn do
         type: @window_update,
         stream_id: stream,
         payload: %WindowUpdate{
-          increment: 32768
-        }}
-      frame2 = %Frame{
-        type: @window_update,
-        stream_id: stream,
-        payload: %WindowUpdate{
-          increment: 32767
+          increment: 65_535
         }}
 
       IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
       :ssl.send(conn.socket, Encoder.encode(frame1))
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
-      :ssl.send(conn.socket, Encoder.encode(frame2))
-      :ssl.send(conn.socket, Encoder.encode(%{frame2 | stream_id: 0}))
-      %{conn | recv_window: 65_535}
+      %{conn | recv_window: window + 65_535}
     else
       IO.puts "we still have room on the window: #{inspect window}"
       %{conn | recv_window: window}
@@ -219,7 +207,8 @@ defmodule River.Conn do
   defp handle_frame(conn, _frame), do: conn
 
   defp decode_frames(conn, <<>>, _ctx, stack),
-    do: {%{conn | buffer: <<>>}, Enum.reverse(stack)}
+    do: %{conn | buffer: <<>>}
+    # do: {%{conn | buffer: <<>>}, Enum.reverse(stack)}
 
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
@@ -230,8 +219,9 @@ defmodule River.Conn do
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->
-        ["incomplete frame", byte_size(buffer)] |> IO.inspect
-        { %{conn | buffer: buffer}, Enum.reverse(stack) }
+        %{conn | buffer: buffer}
+        # ["incomplete frame", byte_size(buffer)] |> IO.inspect
+        # { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
 

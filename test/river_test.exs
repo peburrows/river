@@ -16,7 +16,7 @@ defmodule RiverTest do
     IO.puts "getting golang"
     assert {:ok, %River.Response{code: 200}=g4_resp} = River.Client.get("https://http2.golang.org/file/gopher.png")
     IO.puts "BIG file"
-    assert {:ok, %River.Response{code: 200}=g5_resp} = River.Client.get("https://http2.golang.org/file/go.src.tar.gz", 20_000)
+    assert {:ok, %River.Response{code: 200}=g5_resp} = River.Client.get("https://http2.golang.org/file/go.src.tar.gz", 30_000)
     #
     IO.puts "\nthe response: #{g_resp.code}, #{g_resp.content_type} ::  #{inspect g_resp.body}"
     IO.puts "\nthe response: #{ng_resp.code}, #{ng_resp.content_type} ::  #{inspect ng_resp.body}"
