@@ -4,7 +4,7 @@ defmodule River.Conn do
   use River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Encoder}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder}
 
   @default_header_table_size 4096
 
@@ -13,6 +13,8 @@ defmodule River.Conn do
     protocol:  "h2",
     send_ctx:  nil,
     recv_ctx:  nil,
+    send_window: 0,
+    recv_window: 65_535,
     buffer:    "",
     socket:    nil,
     stream_id: -1,
@@ -44,14 +46,15 @@ defmodule River.Conn do
     {:ok, recv_ctx} = HPack.Table.start_link(@default_header_table_size)
 
     conn = %{conn |
-              send_ctx: send_ctx,
-              recv_ctx: recv_ctx,
-              settings: [
-                MAX_CONCURRENT_STREAMS: 250,
-                INITIAL_WINDOW_SIZE: 65_535,
-                HEADER_TABLE_SIZE: @default_header_table_size,
-              ],
-             }
+             send_ctx: send_ctx,
+             recv_ctx: recv_ctx,
+             settings: [
+               MAX_CONCURRENT_STREAMS: 250,
+               # INITIAL_WINDOW_SIZE: 65_535,
+               INITIAL_WINDOW_SIZE: 2147483647,
+               HEADER_TABLE_SIZE: @default_header_table_size,
+             ],
+            }
 
     {:connect, :init, conn}
   end
@@ -63,7 +66,11 @@ defmodule River.Conn do
         {:ok, response}
       other ->
         other
-    after timeout -> # eventually, we need to customize the timeout
+    after timeout ->
+        # this timeout isn't quite right as it will timeout if the response is
+        # streaming, but is big enough that it takes longer than the timeout.
+        # we need a connect timeout and also a receive timeout (which should timeout if
+        # the time between packets is longer than the timeout value)
       {:error, :timeout}
     end
   end
@@ -123,7 +130,8 @@ defmodule River.Conn do
       {":path", path},
       {":authority", host},
       {"accept", "*/*"},
-      {"user-agent", "River/0.0.1"}
+      {"user-agent", "River/0.0.1"},
+      {"accept-encoding", "gzip, deflate"}
     ]
 
     f = Encoder.encode(%Frame{
@@ -146,20 +154,18 @@ defmodule River.Conn do
       host:     host,
     } = conn
 
-    # ["packet: ", byte_size(payload), payload] |> IO.inspect
+    ["packet: ", byte_size(payload), payload] |> IO.inspect
     {conn, frames} = decode_frames(conn, prev <> payload, ctx, [])
 
     # don't love that we loop over these after we get them back.
     # instead, we should do all this work as we receive each frame
     # in the decode_frames function
-    for f <- frames do
-      # f |> IO.inspect
-      conn = handle_frame(conn, f)
-      {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{f.stream_id}"]])
+    # for f <- frames do
+    #   conn = handle_frame(conn, f)
+    #   ["for loop", conn] |> IO.inspect
+    # end
 
-      River.StreamHandler.add_frame(pid, f)
-    end
-
+    ["after", conn] |> IO.inspect
     {:noreply, conn}
   end
 
@@ -175,6 +181,37 @@ defmodule River.Conn do
     %{conn | settings: conn.settings ++ frame.payload.settings}
   end
 
+  defp handle_frame(%{recv_window: window}=conn, %{type: @data, length: len, stream_id: stream}) do
+    window = window - len
+
+    # if window <= 10_000 do
+    if window <= 0 do
+      frame1 = %Frame{
+        type: @window_update,
+        stream_id: stream,
+        payload: %WindowUpdate{
+          increment: 32768
+        }}
+      frame2 = %Frame{
+        type: @window_update,
+        stream_id: stream,
+        payload: %WindowUpdate{
+          increment: 32767
+        }}
+
+      IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
+      :ssl.send(conn.socket, Encoder.encode(frame1))
+      :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
+      :ssl.send(conn.socket, Encoder.encode(frame2))
+      :ssl.send(conn.socket, Encoder.encode(%{frame2 | stream_id: 0}))
+      %{conn | recv_window: 65_535}
+    else
+      IO.puts "we still have room on the window: #{inspect window}"
+      %{conn | recv_window: window}
+    end
+
+  end
+
   defp handle_frame(conn, %{flags: %{end_stream: true}}) do
     %{conn | streams: conn.streams-1}
   end
@@ -187,9 +224,13 @@ defmodule River.Conn do
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
+        IO.puts "frame! :: #{inspect frame.length} :: #{inspect frame.flags}"
+        {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{conn.host}-#{frame.stream_id}"]])
+        River.StreamHandler.add_frame(pid, frame)
+        conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->
-        # ["incomplete frame", byte_size(buffer), buffer] |> IO.inspect
+        ["incomplete frame", byte_size(buffer)] |> IO.inspect
         { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
