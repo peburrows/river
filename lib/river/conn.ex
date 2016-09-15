@@ -134,7 +134,7 @@ defmodule River.Conn do
       {":authority", host},
       {"accept", "*/*"},
       {"user-agent", "River/0.0.1"},
-      {"accept-encoding", "gzip, deflate"}
+      # {"accept-encoding", "gzip, deflate"}
     ]
 
     f = Encoder.encode(%Frame{
