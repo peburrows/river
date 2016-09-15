@@ -125,6 +125,7 @@ defmodule River.Conn do
 
     {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
 
+    ["socket", socket] |> IO.inspect
     :ssl.setopts(socket, [active: true])
 
     headers = [
