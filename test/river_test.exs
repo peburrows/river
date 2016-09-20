@@ -32,4 +32,8 @@ defmodule RiverTest do
 
     # :timer.sleep(:infinity)
   end
+
+  # test "doing a PUT" do
+  #   assert {:ok, %River.Response{code: 200}=put} = River.Client.put("https://http2.golang.org/ECHO", "hello, world")
+  # end
 end

@@ -78,6 +78,18 @@ defmodule River.Conn do
     end
   end
 
+  def put(pid, path, timeout \\ 5_000) do
+    Connection.cast(pid, {:put, path, self})
+    receive do
+      {:ok, response} ->
+        {:ok, response}
+      other ->
+        other
+    after timeout ->
+        {:error, :timeout}
+    end
+  end
+
   def connect(info, %Conn{host: host}=conn) do
     host = String.to_charlist(host)
 
@@ -113,6 +125,10 @@ defmodule River.Conn do
     # the problem here might be that this call will block until it fires
     # off the request, which is less than ideal. What we should do here is
     # spin up a RequestHandler of some sort to trigger it and handle things
+    make_request(:get, path, parent, conn)
+  end
+
+  defp make_request(method, path, parent, conn) do
     %{
       socket:    socket,
       host:      host,
@@ -129,13 +145,12 @@ defmodule River.Conn do
     :ssl.setopts(socket, [active: true])
 
     headers = [
-      {":method", "GET"},
+      {":method", (method |> Atom.to_string |> String.upcase)},
       {":scheme", "https"},
       {":path", path},
       {":authority", host},
       {"accept", "*/*"},
       {"user-agent", "River/0.0.1"},
-      # {"accept-encoding", "gzip, deflate"}
     ]
 
     f = Encoder.encode(%Frame{
