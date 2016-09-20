@@ -9,6 +9,7 @@ defmodule River.Conn do
   @default_header_table_size 4096
   # for some reason, I can't get the golang server to respect the initial window
   @initial_window_size 65_535
+  # @initial_window_size 131_070
   # @max_frame_size 16_777_215
 
   defstruct [
@@ -201,13 +202,14 @@ defmodule River.Conn do
         type: @window_update,
         stream_id: stream,
         payload: %WindowUpdate{
-          increment: @initial_window_size
+          # increment: @initial_window_size + 200_000
+          increment: 2_000_000
         }}
 
       # IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
       :ssl.send(conn.socket, Encoder.encode(frame1))
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
-      %{conn | recv_window: @initial_window_size}
+      %{conn | recv_window: 2_000_000 }
     else
       IO.puts "we still have room on the window: #{inspect window}"
       %{conn | recv_window: window}
