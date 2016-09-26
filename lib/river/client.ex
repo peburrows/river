@@ -5,16 +5,4 @@ defmodule River.Client do
     River.Conn.get(conn, uri.path, timeout)
   end
   def get(url, timeout), do: get(URI.parse(url), timeout)
-
-  def post(%URI{} = uri, data) do
-    {:ok, conn} = River.Conn.create(uri.host)
-    River.Conn.post(conn, uri.path, data)
-  end
-  def post(url, data), do: post(URI.parse(url), data)
-
-  def put(%URI{} = uri, data) do
-    {:ok, conn} = River.Conn.create(uri.host)
-    River.Conn.put(conn, uri.path, data)
-  end
-  def put(url, data), do: put(URI.parse(url), data)
 end
