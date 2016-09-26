@@ -42,7 +42,7 @@ defmodule River.Conn do
     end
   end
 
-  def init(%Conn{host: host}=conn) do
+  def init(%Conn{host: host} = conn) do
     {:ok, send_ctx} = HPack.Table.start_link(@default_header_table_size)
     {:ok, recv_ctx} = HPack.Table.start_link(@default_header_table_size)
 
@@ -94,7 +94,7 @@ defmodule River.Conn do
     end
   end
 
-  def connect(info, %Conn{host: host}=conn) do
+  def connect(info, %Conn{host: host} = conn) do
     host = String.to_charlist(host)
 
     case :ssl.connect(host, 443, ssl_options(host)) do
@@ -118,7 +118,7 @@ defmodule River.Conn do
     end
   end
 
-  def disconnect(info, %Conn{socket: socket}=conn) do
+  def disconnect(info, %Conn{socket: socket} = conn) do
     # we need to disconnect from the ssl socket
     :ssl.close(socket)
     {:stop, :exit, conn}
@@ -184,7 +184,7 @@ defmodule River.Conn do
     {:noreply, conn}
   end
 
-  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}}=frame) do
+  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}} = frame) do
     f = Encoder.encode(%Frame{
           type: @settings,
           stream_id: 0,
@@ -196,11 +196,11 @@ defmodule River.Conn do
     %{conn | settings: conn.settings ++ frame.payload.settings}
   end
 
-  defp handle_frame(%{recv_window: window}=conn, %{type: @data, length: len, stream_id: stream}) do
+  defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
     IO.puts "the window: #{inspect window}"
 
-    if window <= 0 do
+    if window <=  0 do
       frame1 = %Frame{
         type: @window_update,
         stream_id: stream,

@@ -11,13 +11,13 @@ defmodule River.StreamHandler do
     end
   end
 
-  def add_frame(pid, %Frame{}=frame) do
+  def add_frame(pid, %Frame{} = frame) do
     Agent.cast(pid, fn({cpid, response}) ->
       case Response.add_frame(response, frame) do
-        %Response{closed: true, __status: :error}=r ->
+        %Response{closed: true, __status: :error} = r ->
           message_and_close(pid, cpid, {:error, r})
           {cpid, r}
-        %Response{closed: true}=r ->
+        %Response{closed: true} = r ->
           message_and_close(pid, cpid, {:ok, r})
           {cpid, r}
         r ->

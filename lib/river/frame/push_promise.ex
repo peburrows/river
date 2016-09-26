@@ -19,7 +19,7 @@ defmodule River.Frame.PushPromise do
     end
   end
 
-  def decode(%Frame{length: len, flags: %{padded: true}}=frame,
+  def decode(%Frame{length: len, flags: %{padded: true}} = frame,
     <<pl::8, _::1, prom_id::31, payload::binary>>, ctx) do
 
     data_len = len - pl - 4 - 1
@@ -37,7 +37,7 @@ defmodule River.Frame.PushPromise do
     end
   end
 
-  def decode(%Frame{length: len}=frame, <<_::1, prom_id::31, payload::binary>>, ctx) do
+  def decode(%Frame{length: len} = frame, <<_::1, prom_id::31, payload::binary>>, ctx) do
     data_len = len - 4
     case payload do
       <<hbf::binary-size(data_len)>> ->

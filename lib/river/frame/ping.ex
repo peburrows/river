@@ -13,11 +13,11 @@ defmodule River.Frame.Ping do
   end
 
   # until we change the flags default to be a map
-  def decode(%Frame{flags: []}=frame, payload) do
+  def decode(%Frame{flags: []} = frame, payload) do
     decode(%{frame | flags: %{}}, payload)
   end
 
-  def decode(%Frame{length: len, flags: flags}=frame, payload) do
+  def decode(%Frame{length: len, flags: flags} = frame, payload) do
     case payload do
       <<data::binary-size(len)>> ->
         %{frame |

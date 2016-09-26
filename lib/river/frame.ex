@@ -31,7 +31,7 @@ defmodule River.Frame do
   def http2_header, do: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
   def decode(<<>>, _ctx), do: {:ok, [], <<>>}
-  def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>>=packet, ctx) do
+  def decode(<<length::24, type::8, flags::8, _::1, stream::31, payload::binary>> = packet, ctx) do
     # ["length, type, flags, stream", length, type, flags, stream, byte_size(packet)] |> IO.inspect
     case payload do
       <<data::binary-size(length), tail::binary>> ->
@@ -47,39 +47,39 @@ defmodule River.Frame do
   end
 
 
-  defp decode_payload(%{type: @data}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @data} = frame, payload, _ctx) do
     Data.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @goaway}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @goaway} = frame, payload, _ctx) do
     GoAway.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @headers}=frame, payload, ctx) do
+  defp decode_payload(%{type: @headers} = frame, payload, ctx) do
     Headers.decode(frame, payload, ctx)
   end
 
-  defp decode_payload(%{type: @ping}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @ping} = frame, payload, _ctx) do
     Ping.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @push_promise}=frame, payload, ctx) do
+  defp decode_payload(%{type: @push_promise} = frame, payload, ctx) do
     PushPromise.decode(frame, payload, ctx)
   end
 
-  defp decode_payload(%{type: @priority}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @priority} = frame, payload, _ctx) do
     Priority.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @rst_stream}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @rst_stream} = frame, payload, _ctx) do
     RstStream.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @settings}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @settings} = frame, payload, _ctx) do
     Settings.decode(frame, payload)
   end
 
-  defp decode_payload(%{type: @window_update}=frame, payload, _ctx) do
+  defp decode_payload(%{type: @window_update} = frame, payload, _ctx) do
     WindowUpdate.decode(frame, payload)
   end
 

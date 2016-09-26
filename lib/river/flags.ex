@@ -3,7 +3,7 @@ defmodule River.Flags do
   use River.FrameTypes
   alias River.{Frame}
 
-  def encode(%{}=flags) do
+  def encode(%{} = flags) do
     flags
     |> Enum.filter_map(fn({_k, v}) -> v end, fn({k, _v})-> key_to_val(k) end)
     |> Enum.reduce(0, fn(el, acc) -> el ||| acc end)

@@ -3,7 +3,7 @@ defmodule River.Frame.RstStream do
 
   defstruct [:error]
 
-  def decode(%Frame{}=frame, <<e::32>>),
+  def decode(%Frame{} = frame, <<e::32>>),
     do: %{frame | payload: %__MODULE__{error: River.Errors.code_to_error(e)}}
 
   def decode(_, _),

@@ -21,7 +21,7 @@ defmodule River.Frame.Headers do
     end
   end
 
-  def decode(%Frame{length: len, flags: %{padded: true, priority: true}}=frame,
+  def decode(%Frame{length: len, flags: %{padded: true, priority: true}} = frame,
     <<pl::8, ex::1, dep::31, weight::8, payload::binary>>, ctx) do
 
     data_len = len - pl - 6
@@ -31,7 +31,7 @@ defmodule River.Frame.Headers do
           payload: %__MODULE__{
             headers: HPack.decode(data, ctx),
             padding: pl,
-            exclusive: (ex==1),
+            exclusive: (ex == 1),
             weight:    weight+1,
             stream_dependency: dep
           }
@@ -41,7 +41,7 @@ defmodule River.Frame.Headers do
     end
   end
 
-  def decode(%Frame{length: len, flags: %{padded: true}}=frame, <<pl::8, payload::binary>>, ctx) do
+  def decode(%Frame{length: len, flags: %{padded: true}} = frame, <<pl::8, payload::binary>>, ctx) do
     data_len = len - pl - 1
     case payload do
       <<data::binary-size(data_len), _pad::binary-size(pl)>> ->
@@ -56,7 +56,7 @@ defmodule River.Frame.Headers do
     end
   end
 
-  def decode(%Frame{length: len, flags: %{priority: true}}=frame,
+  def decode(%Frame{length: len, flags: %{priority: true}} = frame,
     <<ex::1, dep::31, weight::8, payload::binary>>, ctx) do
 
     data_len = len - 5
@@ -67,7 +67,7 @@ defmodule River.Frame.Headers do
             headers: HPack.decode(data, ctx),
             stream_dependency: dep,
             weight: weight+1,
-            exclusive: (ex==1)
+            exclusive: (ex == 1)
           }
          }
       _ ->
@@ -75,7 +75,7 @@ defmodule River.Frame.Headers do
     end
   end
 
-  def decode(%Frame{length: len}=frame, payload, ctx) do
+  def decode(%Frame{length: len} = frame, payload, ctx) do
     case payload do
       <<data::binary-size(len)>> ->
         %{frame |
