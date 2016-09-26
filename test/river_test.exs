@@ -3,8 +3,6 @@ defmodule RiverTest do
   doctest River
 
   test "doing things via the GenServer" do
-    alias Experimental.DynamicSupervisor
-
     # IO.puts "getting golang"
     # assert {:ok, %River.Response{code: 200} = g_resp}  = River.Client.get("https://http2.golang.org/")
     # IO.puts "getting nghttp2"
