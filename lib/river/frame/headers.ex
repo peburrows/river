@@ -32,7 +32,7 @@ defmodule River.Frame.Headers do
             headers: HPack.decode(data, ctx),
             padding: pl,
             exclusive: (ex == 1),
-            weight:    weight+1,
+            weight: weight + 1,
             stream_dependency: dep
           }
          }
@@ -66,7 +66,7 @@ defmodule River.Frame.Headers do
           payload: %__MODULE__{
             headers: HPack.decode(data, ctx),
             stream_dependency: dep,
-            weight: weight+1,
+            weight: weight + 1,
             exclusive: (ex == 1)
           }
          }

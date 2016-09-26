@@ -165,7 +165,7 @@ defmodule River.Conn do
           }}, ctx)
 
     :ssl.send(socket, f)
-    {:noreply, %{conn | stream_id: stream_id, streams: streams+1 } }
+    {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
   end
 
   def handle_info({:ssl, _what, payload} = _message, conn) do
@@ -224,7 +224,7 @@ defmodule River.Conn do
   end
 
   defp handle_frame(conn, %{flags: %{end_stream: true}}) do
-    %{conn | streams: conn.streams-1}
+    %{conn | streams: conn.streams - 1}
   end
 
   defp handle_frame(conn, _frame), do: conn

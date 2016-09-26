@@ -53,17 +53,17 @@ defmodule River.Encoder do
 
   defp payload(%{type: @priority, payload: %{stream_dependency: dep, weight: w, exclusive: ex}} = frame, _ctx) do
     ex = if ex, do: 1, else: 0
-    w  = w-1
+    w  = w - 1
 
     %{frame | __payload: <<ex::1, dep::31, w::8>>, length: 5}
   end
 
   defp payload(%{type: @rst_stream, payload: %{error: err}} = frame, _ctx) do
-    %{frame | __payload: <<River.Errors.error_to_code(err)::32>>, length: 4 }
+    %{frame | __payload: <<River.Errors.error_to_code(err)::32>>, length: 4}
   end
 
   defp payload(%{type: @settings, payload: %{settings: settings}} = frame, _ctx) do
-    data = Enum.map_join(settings, fn({k,v})-> <<Settings.setting(k)::16, v::32>> end)
+    data = Enum.map_join(settings, fn({k,v}) -> <<Settings.setting(k)::16, v::32>> end)
     %{frame | __payload: data, length: byte_size(data), stream_id: 0}
   end
 
@@ -78,13 +78,13 @@ defmodule River.Encoder do
   defp weighted_payload(%{payload: %{weight: nil}} = frame), do: frame
   defp weighted_payload(%{__payload: payload, payload: %{weight: w, stream_dependency: dep, exclusive: ex}} = frame) do
     ex = if ex, do: 1, else: 0
-    w  = w-1
+    w  = w - 1
     %{frame | __payload: <<ex::1, dep::31, w::8>> <> payload}
   end
 
   defp padded_payload(%{payload: %{padding: 0}} = frame), do: frame
   defp padded_payload(%{__payload: payload, payload: %{padding: pl}} = frame) do
-    %{frame | __payload: <<pl::8>> <> payload <> :crypto.strong_rand_bytes(pl) }
+    %{frame | __payload: <<pl::8>> <> payload <> :crypto.strong_rand_bytes(pl)}
   end
 
   defp put_length(%{__payload: payload} = frame) do

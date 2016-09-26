@@ -51,7 +51,7 @@ defmodule River.StreamHandler do
     # I don't really know the best way to clean up after ourselves here
     # I need to send a response to the concerned pid, and then stop myself
     # maybe these should be handled with cast calls...?
-    spawn(fn()->
+    spawn(fn() ->
       River.StreamHandler.stop(pid)
     end)
   end
