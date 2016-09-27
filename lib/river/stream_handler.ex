@@ -21,6 +21,7 @@ defmodule River.StreamHandler do
           message_and_close(pid, cpid, {:ok, r})
           {cpid, r}
         r ->
+          message(pid, cpid, {:data})
           {cpid, r}
       end
 
@@ -40,11 +41,19 @@ defmodule River.StreamHandler do
     Agent.stop(pid)
   end
 
-  defp message_and_close(pid, cpid, what) do
+  defp message(pid, cpid, what) do
     case cpid do
       nil -> nil
       c   -> send(c, what)
     end
+  end
+
+  defp message_and_close(pid, cpid, what) do
+    message(pid, cpid, what)
+    # case cpid do
+    #   nil -> nil
+    #   c   -> send(c, what)
+    # end
 
     # I don't really know the best way to clean up after ourselves here
     # I need to send a response to the concerned pid, and then stop myself

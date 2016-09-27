@@ -65,9 +65,15 @@ defmodule River.Conn do
 
   def get(pid, path, timeout \\ 5_000) do
     Connection.cast(pid, {:get, path, self})
+    listen(timeout)
+  end
+
+  defp listen(timeout) do
     receive do
       {:ok, response} ->
         {:ok, response}
+      {:data} ->
+        listen(timeout)
       other ->
         other
     after timeout ->
@@ -75,7 +81,7 @@ defmodule River.Conn do
         # streaming, but is big enough that it takes longer than the timeout.
         # we need a connect timeout and also a receive timeout (which should timeout if
         # the time between packets is longer than the timeout value)
-      {:error, :timeout}
+        {:error, :timeout}
     end
   end
 
