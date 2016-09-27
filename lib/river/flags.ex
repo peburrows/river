@@ -34,7 +34,6 @@ defmodule River.Flags do
   def flags(@rst_stream, _f), do: %{}
   def flags(@goaway, _f),     do: %{}
 
-
   def has_flag?(%Frame{flags: flags}, f),
     do: has_flag?(flags, f)
 

@@ -28,8 +28,8 @@ defmodule River.Encoder do
   defp payload(%{type: @goaway, payload: %{error: err, last_stream_id: last_sid, debug: debug}} = frame, _ctx) do
     err = River.Errors.error_to_code(err)
     body = case debug do
-             nil -> <<1::1, last_sid::31, err::32>>
-             _   -> <<1::1, last_sid::31, err::32, debug::binary>>
+      nil -> <<1::1, last_sid::31, err::32>>
+      _   -> <<1::1, last_sid::31, err::32, debug::binary>>
     end
     %{frame | __payload: body, length: byte_size(body)}
   end
@@ -90,5 +90,4 @@ defmodule River.Encoder do
   defp put_length(%{__payload: payload} = frame) do
     %{frame | length: byte_size(payload)}
   end
-
 end

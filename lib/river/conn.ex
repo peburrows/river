@@ -155,15 +155,16 @@ defmodule River.Conn do
       {"user-agent", "River/0.0.1"},
     ]
 
-    f = Encoder.encode(%Frame{
-          type: @headers,
-          stream_id: stream_id,
-          flags: %{end_headers: true, end_stream: true},
-          payload: %Frame.Headers{
-            headers: headers
-          }}, ctx)
+    frame = %Frame{
+      type: @headers,
+      stream_id: stream_id,
+      flags: %{end_headers: true, end_stream: true},
+      payload: %Frame.Headers{headers: headers}
+    }
 
-    :ssl.send(socket, f)
+    encoded_frame = Encoder.encode(frame, ctx)
+    :ssl.send(socket, encoded_frame)
+
     {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
   end
 
