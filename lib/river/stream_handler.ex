@@ -24,8 +24,6 @@ defmodule River.StreamHandler do
           message(pid, cpid, {:data})
           {cpid, r}
       end
-
-      # {cpid, Response.add_frame(response, frame)}
     end)
   end
 
@@ -50,11 +48,6 @@ defmodule River.StreamHandler do
 
   defp message_and_close(pid, cpid, what) do
     message(pid, cpid, what)
-    # case cpid do
-    #   nil -> nil
-    #   c   -> send(c, what)
-    # end
-
     # I don't really know the best way to clean up after ourselves here
     # I need to send a response to the concerned pid, and then stop myself
     # maybe these should be handled with cast calls...?

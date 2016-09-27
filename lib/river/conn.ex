@@ -7,10 +7,7 @@ defmodule River.Conn do
   alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder}
 
   @default_header_table_size 4096
-  # for some reason, I can't get the golang server to respect the initial window
   @initial_window_size 65_535
-  # @initial_window_size 131_070
-  # @max_frame_size 16_777_215
 
   defstruct [
     host:      nil,
