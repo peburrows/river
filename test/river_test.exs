@@ -2,6 +2,7 @@ defmodule RiverTest do
   use ExUnit.Case
   doctest River
 
+  @tag timeout: 120_000
   test "doing things via the GenServer" do
     # IO.puts "getting golang"
     # assert {:ok, %River.Response{code: 200} = g_resp}  = River.Client.get("https://http2.golang.org/")
