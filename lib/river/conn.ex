@@ -99,7 +99,6 @@ defmodule River.Conn do
 
     case :ssl.connect(host, 443, ssl_options(host)) do
       {:ok, socket} ->
-        River.Frame.http2_header
         :ssl.send(socket, River.Frame.http2_header)
 
         frame = %Frame{
