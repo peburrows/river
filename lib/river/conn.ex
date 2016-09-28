@@ -42,7 +42,7 @@ defmodule River.Conn do
     end
   end
 
-  def init(%Conn{host: host}=conn) do
+  def init(%Conn{} = conn) do
     {:ok, send_ctx} = HPack.Table.start_link(@default_header_table_size)
     {:ok, recv_ctx} = HPack.Table.start_link(@default_header_table_size)
 
@@ -94,31 +94,29 @@ defmodule River.Conn do
     end
   end
 
-  def connect(info, %Conn{host: host}=conn) do
+  def connect(_info, %Conn{host: host} = conn) do
     host = String.to_charlist(host)
 
     case :ssl.connect(host, 443, ssl_options(host)) do
       {:ok, socket} ->
-        River.Frame.http2_header
         :ssl.send(socket, River.Frame.http2_header)
 
-        # frame = River.Frame.Settings.encode(conn.settings, 0)
-        frame = Encoder.encode(%Frame{
-              type: @settings,
-              payload: %Settings{
-                settings: conn.settings
-              }})
+        frame = %Frame{
+          type: @settings,
+          payload: %Settings{settings: conn.settings}
+        }
+        encoded_frame = Encoder.encode(frame)
 
-        :ssl.send(socket, frame)
+        :ssl.send(socket, encoded_frame)
         {:ok, %{conn | socket: socket}}
-      {:error, _} = error ->
+      {:error, _} ->
         {:backoff, 1000, conn}
-      other ->
+      _other ->
         {:backoff, 1000, conn}
     end
   end
 
-  def disconnect(info, %Conn{socket: socket}=conn) do
+  def disconnect(_info, %Conn{socket: socket} = conn) do
     # we need to disconnect from the ssl socket
     :ssl.close(socket)
     {:stop, :exit, conn}
@@ -157,24 +155,25 @@ defmodule River.Conn do
       {"user-agent", "River/0.0.1"},
     ]
 
-    f = Encoder.encode(%Frame{
-          type: @headers,
-          stream_id: stream_id,
-          flags: %{end_headers: true, end_stream: true},
-          payload: %Frame.Headers{
-            headers: headers
-          }}, ctx)
+    frame = %Frame{
+      type: @headers,
+      stream_id: stream_id,
+      flags: %{end_headers: true, end_stream: true},
+      payload: %Frame.Headers{headers: headers}
+    }
 
-    :ssl.send(socket, f)
-    {:noreply, %{conn | stream_id: stream_id, streams: streams+1 } }
+    encoded_frame = Encoder.encode(frame, ctx)
+    :ssl.send(socket, encoded_frame)
+
+    {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
   end
 
-  def handle_info({:ssl, what, payload} = msg, conn) do
+  def handle_info({:ssl, _what, payload} = _message, conn) do
     %{
       recv_ctx: ctx,
-      socket:   socket,
+      socket:   _socket,
       buffer:   prev,
-      host:     host,
+      host:     _host
     } = conn
 
     # ["packet: ", byte_size(payload), payload] |> IO.inspect
@@ -184,7 +183,11 @@ defmodule River.Conn do
     {:noreply, conn}
   end
 
-  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}}=frame) do
+  def handle_info(_message, conn) do
+    {:noreply, conn}
+  end
+
+  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}} = frame) do
     f = Encoder.encode(%Frame{
           type: @settings,
           stream_id: 0,
@@ -196,11 +199,11 @@ defmodule River.Conn do
     %{conn | settings: conn.settings ++ frame.payload.settings}
   end
 
-  defp handle_frame(%{recv_window: window}=conn, %{type: @data, length: len, stream_id: stream}) do
+  defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
     IO.puts "the window: #{inspect window}"
 
-    if window <= 0 do
+    if window <=  0 do
       frame1 = %Frame{
         type: @window_update,
         stream_id: stream,
@@ -221,12 +224,12 @@ defmodule River.Conn do
   end
 
   defp handle_frame(conn, %{flags: %{end_stream: true}}) do
-    %{conn | streams: conn.streams-1}
+    %{conn | streams: conn.streams - 1}
   end
 
   defp handle_frame(conn, _frame), do: conn
 
-  defp decode_frames(conn, <<>>, _ctx, stack),
+  defp decode_frames(conn, <<>>, _ctx, _stack),
     do: %{conn | buffer: <<>>}
     # do: {%{conn | buffer: <<>>}, Enum.reverse(stack)}
 
@@ -243,10 +246,6 @@ defmodule River.Conn do
         # ["incomplete frame", byte_size(buffer)] |> IO.inspect
         # { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
-  end
-
-  def handle_info(msg, conn) do
-    {:noreply, conn}
   end
 
   defp ssl_options(host) do

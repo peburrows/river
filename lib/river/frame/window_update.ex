@@ -3,7 +3,7 @@ defmodule River.Frame.WindowUpdate do
 
   defstruct [:increment]
 
-  def decode(%Frame{}=frame, <<_::1, inc::31>>) do
+  def decode(%Frame{} = frame, <<_::1, inc::31>>) do
     %{frame | payload: %__MODULE__{increment: inc}}
   end
 

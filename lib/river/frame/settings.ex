@@ -15,16 +15,16 @@ defmodule River.Frame.Settings do
     settings: []
   ]
 
-  def decode(%Frame{payload: %__MODULE__{settings: settings}}=frame, <<>>) do
+  def decode(%Frame{payload: %__MODULE__{settings: settings}} = frame, <<>>) do
     %{frame |
       payload: %{frame.payload | settings: Enum.reverse(settings)}
     }
   end
 
-  def decode(%Frame{payload: <<>>}=frame, data),
+  def decode(%Frame{payload: <<>>} = frame, data),
     do: decode(%{frame | payload: %__MODULE__{}}, data)
 
-  def decode(%Frame{payload: payload}=frame, <<id::16, value::32, rest::binary>>) do
+  def decode(%Frame{payload: payload} = frame, <<id::16, value::32, rest::binary>>) do
     decode(%{frame |
              payload: %{payload | settings: [{name(id), value} | payload.settings]}
             }, rest)
