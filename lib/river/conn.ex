@@ -60,13 +60,8 @@ defmodule River.Conn do
     {:connect, :init, conn}
   end
 
-  def get(pid, path, timeout \\ 5_000) do
-    Connection.cast(pid, {:get, path, self})
-    listen(timeout)
-  end
-
-  def put(pid, path, body, timeout \\ 5_000) do
-    Connection.cast(pid, {:put, path, body, self})
+  def request!(pid, %Request{}=req, timeout) do
+    Connection.cast(pid, {req, self})
     listen(timeout)
   end
 
@@ -116,91 +111,72 @@ defmodule River.Conn do
     {:stop, :exit, conn}
   end
 
-  def handle_cast({:get, path}, conn), do: handle_cast({:get, path, nil}, conn)
-  def handle_cast({:get, path, parent}, conn) do
-    # the problem here might be that this call will block until it fires
-    # off the request, which is less than ideal. What we should do here is
-    # spin up a RequestHandler of some sort to trigger it and handle things
-    make_request(:get, path, parent, conn)
+  def handle_cast({%Request{}=req, parent}, conn) do
+    make_request(req, parent, conn)
   end
 
-  def handle_cast({:put, path, body}, conn), do: handle_cast({:put, path, body, nil}, conn)
-  def handle_cast({:put, path, body, parent}, conn) do
-    make_request(%Request{path: path, method: :put, data: body}, parent, conn)
-  end
-
-  defp make_request(%Request{method: :put, data: data, path: path}=req, parent,
+  defp make_request(%Request{method: method, uri: %{path: path}}=req, parent,
     %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
 
-    stream_id = stream_id + 2
+    ["parent", parent] |> IO.inspect
 
-    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
     :ssl.setopts(socket, [active: true])
-    headers = [
-      {":method", "PUT"},
-      {":scheme", "https"},
-      {":path",    path},
-      {":authority", host},
-      {"accept", "*/*"},
-      {"user-agent", "River/0.0.1"},
-    ] ++ req.headers
 
-    header_frame = %Frame{
+    conn =
+      conn
+      |> add_stream(parent)
+      |> send_headers(req)
+      |> send_data(req)
+
+    {:noreply, conn}
+  end
+
+  defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
+    id = id + 2
+    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], parent])
+
+    %{conn | stream_id: id, streams: count + 1}
+  end
+
+  defp send_headers(%{send_ctx: ctx, socket: socket, host: host, stream_id: id} = conn,
+    %{headers: headers, method: method, uri: %{path: path}} = req) do
+    headers = [
+      {":method",    (method |> Atom.to_string |> String.upcase)},
+      {":scheme",    "https"},
+      {":path",      path},
+      # this should probably be req.authority instead
+      {":authority", host},
+      {"accept",     "*/*"},
+      {"user-agent", "River/0.0.1"},
+    ] ++ headers
+
+    frame = %Frame{
       type: @headers,
-      stream_id: stream_id,
-      flags: %{end_headers: true},
+      stream_id: id,
+      flags: header_flags(req),
       payload: %Frame.Headers{headers: headers}
     } |> Encoder.encode(ctx)
 
-    data_frame = %Frame{
+    :ssl.send(socket, frame)
+    conn
+  end
+
+  defp header_flags(%{method: :get}), do: %{end_headers: true, end_stream: true}
+  defp header_flags(_), do: %{end_headers: true}
+
+  defp send_data(conn, %{method: :get}), do: conn
+  defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}) do
+    frame = %Frame{
       type: @data,
       stream_id: stream_id,
       flags: %{end_stream: true},
       payload: %Frame.Data{data: data}
     } |> Encoder.encode
 
-    :ssl.send(socket, header_frame)
-    :ssl.send(socket, data_frame)
+    IO.puts "sending the data frame: #{data}"
 
-    {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
-  end
-
-  defp make_request(method, path, parent, conn) do
-    %{
-      socket:    socket,
-      host:      host,
-      stream_id: stream_id,
-      send_ctx:  ctx,
-      streams:   streams
-    } = conn
-
-    stream_id = stream_id + 2
-
-    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
-
-    ["socket", socket] |> IO.inspect
-    :ssl.setopts(socket, [active: true])
-
-    headers = [
-      {":method", (method |> Atom.to_string |> String.upcase)},
-      {":scheme", "https"},
-      {":path", path},
-      {":authority", host},
-      {"accept", "*/*"},
-      {"user-agent", "River/0.0.1"},
-    ]
-
-    frame = %Frame{
-      type: @headers,
-      stream_id: stream_id,
-      flags: %{end_headers: true, end_stream: true},
-      payload: %Frame.Headers{headers: headers}
-    }
-
-    encoded_frame = Encoder.encode(frame, ctx)
-    :ssl.send(socket, encoded_frame)
-
-    {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
+    :ssl.send(socket, frame)
+    conn
   end
 
   def handle_info({:ssl, _what, payload} = _message, conn) do
@@ -211,10 +187,8 @@ defmodule River.Conn do
       host:     _host
     } = conn
 
-    # ["packet: ", byte_size(payload), payload] |> IO.inspect
     conn = decode_frames(conn, prev <> payload, ctx, [])
 
-    # ["after", conn] |> IO.inspect
     {:noreply, conn}
   end
 

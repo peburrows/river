@@ -1,7 +1,7 @@
 defmodule River.Request do
   defstruct [
     headers: [],
-    path:    nil,
+    uri:     nil,
     method:  :get,
     data:    nil
   ]
