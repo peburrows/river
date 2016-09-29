@@ -2,7 +2,7 @@ defmodule RiverTest do
   use ExUnit.Case
   doctest River
 
-  @tag timeout: 120_000
+  @tag timeout: 120_000, external: true
   test "doing things via the GenServer" do
     # IO.puts "getting golang"
     # assert {:ok, %River.Response{code: 200} = g_resp}  = River.Client.get("https://http2.golang.org/")
@@ -31,4 +31,11 @@ defmodule RiverTest do
   # test "doing a PUT" do
   #   assert {:ok, %River.Response{code: 200}=put} = River.Client.put("https://http2.golang.org/ECHO", "hello, world")
   # end
+
+  @tag external: true
+  test "a PUT to the golang server" do
+    body = "hello"
+    assert {:ok, %River.Response{code: 200}=resp} = River.Client.put("https://http2.golang.org/ECHO", body)
+    assert resp.body == body |> String.upcase
+  end
 end

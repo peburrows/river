@@ -4,7 +4,7 @@ defmodule River.Conn do
   use River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
@@ -65,6 +65,11 @@ defmodule River.Conn do
     listen(timeout)
   end
 
+  def put(pid, path, body, timeout \\ 5_000) do
+    Connection.cast(pid, {:put, path, body, self})
+    listen(timeout)
+  end
+
   defp listen(timeout) do
     receive do
       {:ok, response} ->
@@ -82,17 +87,6 @@ defmodule River.Conn do
     end
   end
 
-  def put(pid, path, timeout \\ 5_000) do
-    Connection.cast(pid, {:put, path, self})
-    receive do
-      {:ok, response} ->
-        {:ok, response}
-      other ->
-        other
-    after timeout ->
-        {:error, :timeout}
-    end
-  end
 
   def connect(_info, %Conn{host: host} = conn) do
     host = String.to_charlist(host)
@@ -128,6 +122,47 @@ defmodule River.Conn do
     # off the request, which is less than ideal. What we should do here is
     # spin up a RequestHandler of some sort to trigger it and handle things
     make_request(:get, path, parent, conn)
+  end
+
+  def handle_cast({:put, path, body}, conn), do: handle_cast({:put, path, body, nil}, conn)
+  def handle_cast({:put, path, body, parent}, conn) do
+    make_request(%Request{path: path, method: :put, data: body}, parent, conn)
+  end
+
+  defp make_request(%Request{method: :put, data: data, path: path}=req, parent,
+    %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
+
+    stream_id = stream_id + 2
+
+    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{stream_id}"], parent])
+    :ssl.setopts(socket, [active: true])
+    headers = [
+      {":method", "PUT"},
+      {":scheme", "https"},
+      {":path",    path},
+      {":authority", host},
+      {"accept", "*/*"},
+      {"user-agent", "River/0.0.1"},
+    ] ++ req.headers
+
+    header_frame = %Frame{
+      type: @headers,
+      stream_id: stream_id,
+      flags: %{end_headers: true},
+      payload: %Frame.Headers{headers: headers}
+    } |> Encoder.encode(ctx)
+
+    data_frame = %Frame{
+      type: @data,
+      stream_id: stream_id,
+      flags: %{end_stream: true},
+      payload: %Frame.Data{data: data}
+    } |> Encoder.encode
+
+    :ssl.send(socket, header_frame)
+    :ssl.send(socket, data_frame)
+
+    {:noreply, %{conn | stream_id: stream_id, streams: streams + 1}}
   end
 
   defp make_request(method, path, parent, conn) do
