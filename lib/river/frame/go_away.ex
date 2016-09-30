@@ -2,7 +2,7 @@ defmodule River.Frame.GoAway do
   alias River.Frame
   defstruct [:last_stream_id, :error, :debug]
 
-  def decode(%Frame{length: len}=frame, <<_::1, sid::31, err::32, rest::binary>>) do
+  def decode(%Frame{length: len} = frame, <<_::1, sid::31, err::32, rest::binary>>) do
     debug_len = len - 8
     case rest do
       <<debug::binary-size(debug_len)>> ->

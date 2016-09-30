@@ -15,7 +15,7 @@ defmodule River.Mixfile do
   def application do
     [
       mod: {River, []},
-      applications: [:logger, :gen_stage, :ssl]
+      applications: [:logger, :gen_stage, :ssl, :certifi]
     ]
   end
 
@@ -24,9 +24,9 @@ defmodule River.Mixfile do
       {:hpack, "~> 1.0.2"},
       {:gen_stage, "~> 0.5"},
       {:gen_state_machine, "~> 1.0.2"},
-      {:hackney, "~> 1.6"},
       {:connection, "~> 1.0.4"},
       {:certifi, "~> 0.4.0"},
+      {:ssl_verify_fun, "~> 1.0"},
       {:ex_doc, "~> 0.13.0", only: :dev},
       {:earmark, "~> 1.0", only: :dev},
       {:mix_test_watch, "~> 0.2", only: [:test, :dev]},

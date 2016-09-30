@@ -19,7 +19,7 @@ defmodule River.ResponseTest do
     headers = [{"status", "200"}, {"content-type", "html"}]
     assert %Response{
       headers: ^headers,
-      frames:  [%Frame{type: @headers, payload: %Frame.Headers{headers: headers}}]
+      frames:  [%Frame{type: @headers, payload: %Frame.Headers{headers: ^headers}}]
     } = Response.add_frame(%Response{}, %Frame{type: @headers, payload: %Frame.Headers{headers: headers}})
   end
 

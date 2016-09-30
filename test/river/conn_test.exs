@@ -1,4 +1,4 @@
-defmodule River.ConnectionTest do
+defmodule River.ConnTest do
   use ExUnit.Case
 
   test "calling Connection.create multiple times only creates on conn" do

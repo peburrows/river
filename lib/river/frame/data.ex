@@ -16,7 +16,7 @@ defmodule River.Frame.Data do
     end
   end
 
-  def decode(%Frame{length: len, flags: %{padded: true}}=frame, <<pad_len::8, data::binary>>) do
+  def decode(%Frame{length: len, flags: %{padded: true}} = frame, <<pad_len::8, data::binary>>) do
     data_len = len - pad_len - 1
 
     case data do
@@ -30,7 +30,7 @@ defmodule River.Frame.Data do
     end
   end
 
-  def decode(%Frame{length: len}=frame, data) do
+  def decode(%Frame{length: len} = frame, data) do
     case data do
       <<payload::binary-size(len)>> ->
         %{frame | payload: %__MODULE__{data: payload}}
