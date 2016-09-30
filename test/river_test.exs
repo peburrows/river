@@ -1,5 +1,5 @@
 defmodule RiverTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest River
 
   describe "http2.golang.org" do

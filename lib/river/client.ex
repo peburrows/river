@@ -4,7 +4,6 @@ defmodule River.Client do
   def get(uri, timeout \\ 5_000)
   def get(%URI{} = uri, timeout) do
     {:ok, conn} = River.Conn.create(uri.host)
-    # River.Conn.get(conn, uri.path, timeout)
     River.Conn.request!(conn, %Request{uri: uri}, timeout)
   end
   def get(uri, timeout), do: get(URI.parse(uri), timeout)

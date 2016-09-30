@@ -74,10 +74,6 @@ defmodule River.Conn do
       other ->
         other
     after timeout ->
-        # this timeout isn't quite right as it will timeout if the response is
-        # streaming, but is big enough that it takes longer than the timeout.
-        # we need a connect timeout and also a receive timeout (which should timeout if
-        # the time between packets is longer than the timeout value)
         {:error, :timeout}
     end
   end
@@ -117,8 +113,6 @@ defmodule River.Conn do
 
   defp make_request(%Request{method: method, uri: %{path: path}}=req, parent,
     %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
-
-    ["parent", parent] |> IO.inspect
 
     :ssl.setopts(socket, [active: true])
 
@@ -173,22 +167,12 @@ defmodule River.Conn do
       payload: %Frame.Data{data: data}
     } |> Encoder.encode
 
-    IO.puts "sending the data frame: #{data}"
-
     :ssl.send(socket, frame)
     conn
   end
 
-  def handle_info({:ssl, _what, payload} = _message, conn) do
-    %{
-      recv_ctx: ctx,
-      socket:   _socket,
-      buffer:   prev,
-      host:     _host
-    } = conn
-
-    conn = decode_frames(conn, prev <> payload, ctx, [])
-
+  def handle_info({:ssl, _what, payload}, %{recv_ctx: ctx, buffer: buffer} = conn) do
+    conn = decode_frames(conn, buffer <> payload, ctx, [])
     {:noreply, conn}
   end
 
@@ -240,20 +224,17 @@ defmodule River.Conn do
 
   defp decode_frames(conn, <<>>, _ctx, _stack),
     do: %{conn | buffer: <<>>}
-    # do: {%{conn | buffer: <<>>}, Enum.reverse(stack)}
 
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
-        IO.puts "frame! :: #{inspect frame.length} :: #{inspect frame.flags}"
+        # IO.puts "frame! :: #{inspect frame.length} :: #{inspect frame.flags}"
         {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{conn.host}-#{frame.stream_id}"]])
         River.StreamHandler.add_frame(pid, frame)
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->
         %{conn | buffer: buffer}
-        # ["incomplete frame", byte_size(buffer)] |> IO.inspect
-        # { %{conn | buffer: buffer}, Enum.reverse(stack) }
     end
   end
 
