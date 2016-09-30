@@ -3,7 +3,7 @@ defmodule River.Mixfile do
 
   def project do
     [app: :river,
-     version: "0.0.1-beta",
+     version: "0.0.1",
      elixir: "~> 1.3",
      description: description,
      package: package,
