@@ -13,7 +13,7 @@ River is a general-purpose HTTP client with eventual hopes of full HTTP/2 suppor
   1. Add River to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:river, "~> 0.0.1-beta"}]
+          [{:river, "~> 0.0.1"}]
         end
 
   2. Ensure River is started before your application:
