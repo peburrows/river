@@ -194,7 +194,7 @@ defmodule River.Conn do
 
   defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
-    IO.puts "the window: #{inspect window}"
+    # IO.puts "the window: #{inspect window}"
 
     if window <=  0 do
       frame1 = %Frame{
@@ -210,7 +210,7 @@ defmodule River.Conn do
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
       %{conn | recv_window: 2_000_000 }
     else
-      IO.puts "we still have room on the window: #{inspect window}"
+      # IO.puts "we still have room on the window: #{inspect window}"
       %{conn | recv_window: window}
     end
 
