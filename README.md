@@ -34,3 +34,31 @@ River is a general-purpose HTTP client with eventual hopes of full HTTP/2 suppor
 - [ ] HTTP/1 --> HTTP/2 upgrading
 - [ ] Full HTTP/2 support
 - [ ] Full HTTP/1.x support
+
+## Basic Usage
+
+#### Simple GET
+```elixir
+River.Client.get("https://http2.golang.org/")
+=> {:ok,
+ %River.Response{__status: :ok,
+  body: "<html>\n<body>\n<h1>Go...",
+  closed: true, code: 200, content_type: "text/html; charset=utf-8",
+  headers: headers: [{":status", "200"},
+                     {"content-type", "text/html; charset=utf-8"},
+                     {"content-length", "1708"},
+                     {"date", "Fri, 30 Sep 2016 04:26:34 GMT"}]}}
+```
+
+#### Simple POST
+```elixir
+River.Client.post("https://example.com/", "hello world")
+=> {:ok, %River.Response{...}}
+```
+
+#### Request with timeout
+```elixir
+# timeout unit is milliseconds
+River.Client.get("https://http2.golang.org/", 10)
+=> {:error, :timeout}
+```
