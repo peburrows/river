@@ -200,7 +200,6 @@ defmodule River.Conn do
 
   defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
-
     if window <=  0 do
       frame1 = %Frame{
         type: @window_update,
@@ -227,11 +226,10 @@ defmodule River.Conn do
     do: %{conn | buffer: <<>>}
 
   defp decode_frames(conn, payload, ctx, stack) do
-    # Process.whereis
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
+        # we're assuming it exists, but that might be a bad assumption
         pid = Process.whereis(:"stream-#{conn.host}-#{frame.stream_id}")
-        # {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: , conn.socket])
         River.StreamHandler.add_frame(pid, frame)
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
