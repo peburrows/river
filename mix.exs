@@ -31,6 +31,7 @@ defmodule River.Mixfile do
       {:earmark, "~> 1.0", only: :dev},
       {:mix_test_watch, "~> 0.2", only: [:test, :dev]},
       {:credo, "~> 0.4", only: [:test, :dev]},
+      {:benchfella, "~> 0.3.0", only: [:test, :dev]},
     ]
   end
 
