@@ -3,10 +3,10 @@ defmodule River.StreamHandler do
   alias River.{Response, Frame, Frame.WindowUpdate, Encoder}
 
   @intial_flow_control_window 65_535
-  @flow_control_increment     100_000
+  @flow_control_increment     2_147_483_647 # the MAX!
 
   def start_link(opts, socket \\ nil, cpid \\ nil) do
-    case Agent.start_link(fn ->  {cpid, socket, 65_353, %Response{}} end, opts) do
+    case Agent.start_link(fn ->  {cpid, socket, @intial_flow_control_window, %Response{}} end, opts) do
       {:ok, pid} ->
         {:ok, pid}
       {:error, {:already_started, pid}} ->
@@ -54,10 +54,8 @@ defmodule River.StreamHandler do
   end
 
   defp handle_flow_control(window, %{type: @data}=frame, socket) do
-    ["the window", window, frame.length] |> IO.inspect
     new_window = window - frame.length
     window = if new_window <= 0 do
-      IO.puts "we are out of room"
       encoded_frame = %River.Frame{
         type: @window_update,
         stream_id: frame.stream_id,
@@ -77,7 +75,6 @@ defmodule River.StreamHandler do
   defp handle_flow_control(window, _, socket), do: {window, socket}
 
   defp message(pid, cpid, what) do
-    IO.inspect ["the concerned pid:", cpid]
     case cpid do
       nil -> nil
       c   -> send(c, what)

@@ -8,6 +8,7 @@ defmodule River.Conn do
 
   @default_header_table_size 4096
   @initial_window_size 65_535
+  @flow_control_increment 2_147_483_647
 
   defstruct [
     host:      nil,
@@ -194,23 +195,18 @@ defmodule River.Conn do
 
   defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
-    IO.puts "the window: #{inspect window}"
 
     if window <=  0 do
       frame1 = %Frame{
         type: @window_update,
         stream_id: stream,
         payload: %WindowUpdate{
-          # increment: @initial_window_size + 200_000
-          increment: 2_000_000
+          increment: @flow_control_increment
         }}
 
-      # IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
-      # :ssl.send(conn.socket, Encoder.encode(frame1))
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
-      %{conn | recv_window: 2_000_000 }
+      %{conn | recv_window: window + @flow_control_increment}
     else
-      IO.puts "we still have room on the window: #{inspect window}"
       %{conn | recv_window: window}
     end
 
