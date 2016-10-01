@@ -7,7 +7,7 @@ defmodule River.Frame do
     stream_id: 0,
     type: nil,
     flags: %{},
-    length: nil,
+    length: 0,
     __header: <<>>,
     __payload: <<>>
   ]

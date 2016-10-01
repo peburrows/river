@@ -10,7 +10,6 @@ defmodule RiverTest do
 
     @tag external: true
     test "a simple GET " do
-      IO.puts "getting golang"
       assert {:ok, %River.Response{code: 200} = resp}  = River.Client.get("https://http2.golang.org/")
       assert byte_size(resp.body) > 0
     end
