@@ -4,7 +4,7 @@ defmodule River.Conn do
   use River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
@@ -128,7 +128,12 @@ defmodule River.Conn do
 
   defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
     id = id + 2
-    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], conn.socket, parent])
+    # {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], conn.socket, parent])
+    {:ok, _} =
+      DynamicSupervisor.start_child(River.StreamSupervisor, [
+            [name: :"stream-#{host}-#{id}"],
+            %Stream{conn: conn, id: id, listener: parent, window: @initial_window_size}
+          ])
 
     %{conn | stream_id: id, streams: count + 1}
   end
@@ -195,7 +200,6 @@ defmodule River.Conn do
 
   defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
     window = window - len
-
     if window <=  0 do
       frame1 = %Frame{
         type: @window_update,
@@ -224,7 +228,8 @@ defmodule River.Conn do
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
-        {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{conn.host}-#{frame.stream_id}"], conn.socket])
+        # we're assuming it exists, but that might be a bad assumption
+        pid = Process.whereis(:"stream-#{conn.host}-#{frame.stream_id}")
         River.StreamHandler.add_frame(pid, frame)
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])

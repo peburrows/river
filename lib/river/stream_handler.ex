@@ -1,12 +1,11 @@
 defmodule River.StreamHandler do
   use River.FrameTypes
-  alias River.{Response, Frame, Frame.WindowUpdate, Encoder}
+  alias River.{Response, Frame, Frame.WindowUpdate, Encoder, Stream}
 
-  @intial_flow_control_window 65_535
   @flow_control_increment     2_147_483_647 # the MAX!
 
-  def start_link(opts, socket \\ nil, cpid \\ nil) do
-    case Agent.start_link(fn ->  {cpid, socket, @intial_flow_control_window, %Response{}} end, opts) do
+  def start_link(opts, %Stream{}=stream) do
+    case Agent.start_link(fn -> {stream, %Response{}} end, opts) do
       {:ok, pid} ->
         {:ok, pid}
       {:error, {:already_started, pid}} ->
@@ -15,64 +14,61 @@ defmodule River.StreamHandler do
   end
 
   def add_frame(pid, %Frame{} = frame) do
-    Agent.cast(pid, fn({cpid, socket, window, response}) ->
-      {window, socket} = handle_flow_control(window, frame, socket)
+    Agent.cast(pid, fn({%{listener: cpid, window: window, conn: %{socket: socket}}=stream, response}) ->
+      stream = handle_flow_control(stream, frame)
+      # {window, socket} = handle_flow_control(window, frame, socket)
       case Response.add_frame(response, frame) do
         %Response{closed: true, __status: :error} = r ->
           message_and_close(pid, cpid, {:error, r})
-          {cpid, socket, window, r}
+          {stream, r}
         %Response{closed: true} = r ->
           message_and_close(pid, cpid, {:ok, r})
-          {cpid, socket, window, r}
+          {stream, r}
         r ->
           message(pid, cpid, {:data})
-          {cpid, socket, window, r}
+          {stream, r}
       end
     end)
   end
 
   def get_response(pid) do
-    Agent.get(pid, fn({_cpid, _socket, _window, response}) ->
+    Agent.get(pid, fn({_, response}) ->
       response
     end)
   end
 
   # kind of useless, but it prevents us from spreading
   # implementation logic outside of this module
-  def stop(pid) do
-    Agent.stop(pid)
+  def stop(pid),
+    do: Agent.stop(pid)
+
+  defp handle_flow_control(%{window: window} = stream, %{type: @data, length: l} = frame) do
+    increment_flow_control(%{stream | window: window - l}, frame)
   end
 
-  defp handle_flow_control(window, %{type: @data}=frame, nil) do
-    window = window - frame.length
-    window = if window <= 0 do
-      window + @flow_control_increment
-    else
-      window
+  defp handle_flow_control(stream, _frame),
+    do: stream
+
+  defp increment_flow_control(%{window: 0, id: id, conn: %{socket: socket}} = stream, %{type: @data}) do
+    encoded = %Frame{
+      type: @window_update,
+      stream_id: id,
+      payload: %WindowUpdate{
+        increment: @flow_control_increment
+      }
+    } |> Encoder.encode
+
+    case socket do
+      nil ->
+        stream
+      _   ->
+        :ssl.send(socket, encoded)
+        stream
     end
-    {window, nil}
   end
 
-  defp handle_flow_control(window, %{type: @data}=frame, socket) do
-    new_window = window - frame.length
-    window = if new_window <= 0 do
-      encoded_frame = %River.Frame{
-        type: @window_update,
-        stream_id: frame.stream_id,
-        payload: %WindowUpdate{
-          increment: @flow_control_increment,
-        }
-      } |> Encoder.encode
-      :ssl.send(socket, encoded_frame)
-      window = new_window + @flow_control_increment
-    else
-      new_window
-    end
-
-    {window, socket}
-  end
-
-  defp handle_flow_control(window, _, socket), do: {window, socket}
+  defp increment_flow_control(stream, _),
+    do: stream
 
   defp message(pid, cpid, what) do
     case cpid do
