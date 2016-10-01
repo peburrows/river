@@ -127,7 +127,7 @@ defmodule River.Conn do
 
   defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
     id = id + 2
-    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], parent])
+    {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], conn.socket, parent])
 
     %{conn | stream_id: id, streams: count + 1}
   end
@@ -206,7 +206,7 @@ defmodule River.Conn do
         }}
 
       # IO.puts "sending window update frame #{inspect frame1} :: #{inspect Encoder.encode(frame1)}"
-      :ssl.send(conn.socket, Encoder.encode(frame1))
+      # :ssl.send(conn.socket, Encoder.encode(frame1))
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
       %{conn | recv_window: 2_000_000 }
     else
@@ -228,8 +228,7 @@ defmodule River.Conn do
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
-        # IO.puts "frame! :: #{inspect frame.length} :: #{inspect frame.flags}"
-        {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{conn.host}-#{frame.stream_id}"]])
+        {:ok, pid} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{conn.host}-#{frame.stream_id}"], conn.socket])
         River.StreamHandler.add_frame(pid, frame)
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
