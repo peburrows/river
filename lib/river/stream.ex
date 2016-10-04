@@ -1,31 +1,56 @@
 defmodule River.Stream do
   use River.FrameTypes
+  alias River.{Frame, Encoder}
+
+  @flow_control_increment 2_147_483_647 # the MAX!
 
   defstruct [
-    id:     0,
-    window: 0,
-    conn:   %River.Conn{},
+    id:       0,
+    window:   0,
+    conn:     %River.Conn{},
     listener: nil,
-    state:   :idle,
+    state:    :idle,
   ]
 
   def add_frame(stream, frame) do
-    transition_state(stream, frame)
+    stream
+    |> transition_state(frame)
+    |> handle_flow_control(frame)
+  end
+
+  defp handle_flow_control(%{window: window} = stream, %{type: @data, length: l} = frame),
+    do: increment_flow_control(%{stream | window: window - l}, frame)
+  defp handle_flow_control(stream, _frame),
+    do: stream
+
+  defp increment_flow_control(%{window: 0, id: id, conn: %{socket: socket}} = stream, _frame) do
+    encoded = %Frame{
+      type: @window_update,
+      stream_id: id,
+      payload: %Frame.WindowUpdate{
+        increment: @flow_control_increment
+      }
+    } |> Encoder.encode
+
+    case socket do
+      nil ->
+        stream
+      _ ->
+        :ssl.send(socket, encoded)
+        stream
+    end
   end
 
   defp transition_state(%{state: :idle} = stream, %{type: @headers}),
     do: %{stream | state: :open}
-
   defp transition_state(%{state: :idle} = stream, %{type: @push_promise}),
     do: %{stream | state: :reserved}
-
   defp transition_state(%{state: :reserved} = stream, %{type: @headers}),
     do: %{stream | state: :half_closed}
-
   defp transition_state(%{state: :open} = stream, %{flags: %{end_stream: true}}),
     do: %{stream | state: :half_closed}
-
   defp transition_state(stream, %{type: @rst_stream}),
     do: %{stream | state: :closed}
-   
+  defp transition_state(stream, _),
+    do: stream
 end

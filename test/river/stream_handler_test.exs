@@ -9,14 +9,25 @@ defmodule River.StreamHandlerTest do
     assert {:ok, ^pid} = StreamHandler.start_link([name: TesterStream], %Stream{})
   end
 
-  test "adding a frame adds to the response's frame list" do
-    {:ok, pid} = StreamHandler.start_link([], %Stream{})
-    assert %Response{frames: []} = StreamHandler.get_response(pid)
+  describe "adding a frame" do
+    setup do
+      {:ok, handler} = StreamHandler.start_link([], %Stream{})
+      {:ok, %{handler: handler}}
+    end
 
-    StreamHandler.add_frame(pid, %Frame{type: @data, payload: %Frame.Data{}})
-    assert %Response{
-      frames: [%Frame{}]
-    } = StreamHandler.get_response(pid)
+    test "adds it to the response's frame list", %{handler: pid} do
+      assert %Response{frames: []} = StreamHandler.get_response(pid)
+
+      StreamHandler.add_frame(pid, %Frame{type: @data, payload: %Frame.Data{}})
+      assert %Response{
+        frames: [%Frame{}]
+      } = StreamHandler.get_response(pid)
+    end
+
+    test "transitions the state of the stream", %{handler: handler} do
+      StreamHandler.add_frame(handler, %Frame{type: @headers, payload: %Frame.Headers{}})
+      assert %Stream{state: :open} = StreamHandler.get_stream(handler)
+    end
   end
 
   test "getting a frame with an :END_STREAM flag causes the handler to send a message" do
