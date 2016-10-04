@@ -1,17 +1,12 @@
 defmodule River.FrameTypes do
-  defmacro __using__(_opts) do
-    quote do
-      # this might be lazy, but it'll allow us to share these definitions across modules
-      @data          0x0
-      @headers       0x1
-      @priority      0x2
-      @rst_stream    0x3
-      @settings      0x4
-      @push_promise  0x5
-      @ping          0x6
-      @goaway        0x7
-      @window_update 0x8
-      @continuation  0x9
-    end
-  end
+  defmacro data,     do: quote do: 0x0
+  defmacro headers,  do: quote do: 0x1
+  defmacro priority, do: quote do: 0x2
+  defmacro rst_stream, do: quote do: 0x3
+  defmacro settings, do: quote do: 0x4
+  defmacro push_promise, do: quote do: 0x5
+  defmacro ping, do: quote do: 0x6
+  defmacro goaway, do: quote do: 0x7
+  defmacro window_update, do: quote do: 0x8
+  defmacro continuation, do: quote do: 0x9
 end

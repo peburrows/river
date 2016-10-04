@@ -1,33 +1,34 @@
 defmodule River.FlagsTest do
   use ExUnit.Case, async: true
-  use River.FrameTypes
+  require River.FrameTypes
+  alias River.FrameTypes
   require Bitwise
 
   alias River.{Flags, Frame}
 
   test "extracting the ACK flag from a settings frame" do
-    assert %{ack: true} == Flags.flags(@settings, 0x1)
+    assert %{ack: true} == Flags.flags(FrameTypes.settings, 0x1)
   end
 
   test "extracting the :END_STREAM flag from a data frame" do
-    assert %{end_stream: true} == Flags.flags(@data, 0x1)
+    assert %{end_stream: true} == Flags.flags(FrameTypes.data, 0x1)
 
     # data frames only have one valid flag, so make sure we ignore others
-    assert %{end_stream: true} == Flags.flags(@data, Bitwise.|||(0x1, 0x4) )
+    assert %{end_stream: true} == Flags.flags(FrameTypes.data, Bitwise.|||(0x1, 0x4) )
   end
 
   test "extracting flags from a headers frame" do
-    assert %{end_stream: true} == Flags.flags(@headers, 0x1)
-    assert %{end_stream: true, end_headers: true} == Flags.flags(@headers, Bitwise.|||(0x1, 0x4))
-    assert %{priority: true, padded: true} == Flags.flags(@headers, Bitwise.|||(0x8, 0x20))
+    assert %{end_stream: true} == Flags.flags(FrameTypes.headers, 0x1)
+    assert %{end_stream: true, end_headers: true} == Flags.flags(FrameTypes.headers, Bitwise.|||(0x1, 0x4))
+    assert %{priority: true, padded: true} == Flags.flags(FrameTypes.headers, Bitwise.|||(0x8, 0x20))
   end
 
   test "extracting flags from rst_stream frame" do
-    assert %{} == Flags.flags(@rst_stream, 0x1)
+    assert %{} == Flags.flags(FrameTypes.rst_stream, 0x1)
   end
 
   test "extracting flags from goaway frame" do
-    assert %{} == Flags.flags(@goaway, 0x1)
+    assert %{} == Flags.flags(FrameTypes.goaway, 0x1)
   end
 
   describe "encoding" do

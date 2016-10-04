@@ -1,7 +1,7 @@
 defmodule River.FrameTest do
   use ExUnit.Case, async: true
-  use River.FrameTypes
-  alias River.Frame
+  require River.FrameTypes
+  alias River.{Frame, FrameTypes}
   alias River.Frame.{Data, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
 
   test "the http2 header is correct" do
@@ -39,7 +39,7 @@ defmodule River.FrameTest do
 
   test "decoding a GOAWAY frame" do
     payload = <<1::1, 13::31, 0x6::32>>
-    frame = <<byte_size(payload)::24, @goaway::8, 0::8, 1::1, 0::31, payload::binary>>
+    frame = <<byte_size(payload)::24, FrameTypes.goaway::8, 0::8, 1::1, 0::31, payload::binary>>
 
     assert {:ok, %Frame{
                stream_id: 0,
@@ -55,7 +55,7 @@ defmodule River.FrameTest do
     headers    = [{":method", "GET"}]
     payload    = HPack.encode(headers, ctx)
     length     = byte_size(payload)
-    frame      = <<length::24, @headers::8, 0x1::8, 1::1, 21::31, payload::binary>>
+    frame      = <<length::24, FrameTypes.headers::8, 0x1::8, 1::1, 21::31, payload::binary>>
 
     assert {:ok, %Frame{
                stream_id: 21,
@@ -68,7 +68,7 @@ defmodule River.FrameTest do
   end
 
   test "decoding a PING frame" do
-    frame = <<8::24, @ping::8, 0::8, 1::1, 0::31, 100::64>>
+    frame = <<8::24, FrameTypes.ping::8, 0::8, 1::1, 0::31, 100::64>>
     assert {:ok, %Frame{
                length: 8,
                stream_id: 0,
@@ -80,7 +80,7 @@ defmodule River.FrameTest do
   end
 
   test "decoding a PRIORITY frame" do
-    frame = <<5::24, @priority::8, 0::8, 1::1, 15::31, 1::1, 21::31, 100::8>>
+    frame = <<5::24, FrameTypes.priority::8, 0::8, 1::1, 15::31, 1::1, 21::31, 100::8>>
     assert {:ok, %Frame{
                length: 5,
                stream_id: 15,
@@ -97,7 +97,7 @@ defmodule River.FrameTest do
     headers    = [{":method", "GET"}]
     payload    = HPack.encode(headers, ctx)
     length     = byte_size(payload) + 4
-    frame      = <<length::24, @push_promise::8, 0x1::8, 1::1, 21::31, 1::1, 25::31, payload::binary>>
+    frame      = <<length::24, FrameTypes.push_promise::8, 0x1::8, 1::1, 21::31, 1::1, 25::31, payload::binary>>
 
     assert {:ok, %Frame{
                length:   ^length,
@@ -111,7 +111,7 @@ defmodule River.FrameTest do
   end
 
   test "decoding an RST_STREAM frame" do
-    frame = <<4::24, @rst_stream::8, 0::8, 0::1, 101::31, 0x1::32>>
+    frame = <<4::24, FrameTypes.rst_stream::8, 0::8, 0::1, 101::31, 0x1::32>>
 
     assert {:ok, %Frame{
                length: 4,
@@ -127,7 +127,7 @@ defmodule River.FrameTest do
   end
 
   test "decoding a SETTINGS frame" do
-    frame = <<6::24, @settings::8, 1::8, 0::1, 15::31, 0x1::16, 4096::32>>
+    frame = <<6::24, FrameTypes.settings::8, 1::8, 0::1, 15::31, 0x1::16, 4096::32>>
     assert {:ok,
             %Frame{
               length:    6,
@@ -143,10 +143,10 @@ defmodule River.FrameTest do
   end
 
   test "decoding a WINDOW_UPDATE frame" do
-    frame = <<4::24, @window_update::8, 0::8, 1::1, 0::31, 1::1, 10_000::31>>
+    frame = <<4::24, FrameTypes.window_update::8, 0::8, 1::1, 0::31, 1::1, 10_000::31>>
     assert {:ok, %Frame{
                length: 4,
-               type:   @window_update,
+               type:   FrameTypes.window_update,
                stream_id: 0,
                payload: %WindowUpdate{
                  increment: 10_000

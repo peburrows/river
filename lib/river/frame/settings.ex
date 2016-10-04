@@ -1,5 +1,4 @@
 defmodule River.Frame.Settings do
-  use River.FrameTypes
   alias River.Frame
 
   defmodule Flags do

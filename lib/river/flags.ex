@@ -1,7 +1,7 @@
 defmodule River.Flags do
   use Bitwise
-  use River.FrameTypes
-  alias River.{Frame}
+  require River.FrameTypes
+  alias River.{Frame, FrameTypes}
 
   def encode(%{} = flags) do
     flags
@@ -9,21 +9,21 @@ defmodule River.Flags do
     |> Enum.reduce(0, fn(el, acc) -> el ||| acc end)
   end
 
-  def flags(@settings, f) do
+  def flags(FrameTypes.settings, f) do
     get_flags(%{}, f, {0x1, :ack})
   end
 
-  def flags(@data, f) do
+  def flags(FrameTypes.data, f) do
     get_flags(%{}, f, {0x1, :end_stream})
   end
 
-  def flags(@push_promise, f) do
+  def flags(FrameTypes.push_promise, f) do
     %{}
     |> get_flags(f, {0x4, :end_headers})
     |> get_flags(f, {0x8, :padded})
   end
 
-  def flags(@headers, f) do
+  def flags(FrameTypes.headers, f) do
     %{}
     |> get_flags(f, {0x1,  :end_stream})
     |> get_flags(f, {0x4,  :end_headers})
@@ -31,8 +31,8 @@ defmodule River.Flags do
     |> get_flags(f, {0x20, :priority})
   end
 
-  def flags(@rst_stream, _f), do: %{}
-  def flags(@goaway, _f),     do: %{}
+  def flags(FrameTypes.rst_stream, _f), do: %{}
+  def flags(FrameTypes.goaway, _f),     do: %{}
 
   def has_flag?(%Frame{flags: flags}, f),
     do: has_flag?(flags, f)

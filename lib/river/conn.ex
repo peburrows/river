@@ -1,10 +1,10 @@
 defmodule River.Conn do
   # the name is confusing, but this is an external behaviour
   use Connection
-  use River.FrameTypes
+  require River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream, FrameTypes}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
@@ -88,7 +88,7 @@ defmodule River.Conn do
         :ssl.send(socket, River.Frame.http2_header)
 
         frame = %Frame{
-          type: @settings,
+          type: FrameTypes.settings,
           payload: %Settings{settings: conn.settings}
         }
         encoded_frame = Encoder.encode(frame)
@@ -151,7 +151,7 @@ defmodule River.Conn do
     ] ++ headers
 
     frame = %Frame{
-      type: @headers,
+      type: FrameTypes.headers,
       stream_id: id,
       flags: header_flags(req),
       payload: %Frame.Headers{headers: headers}
@@ -167,7 +167,7 @@ defmodule River.Conn do
   defp send_data(conn, %{method: :get}), do: conn
   defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}) do
     frame = %Frame{
-      type: @data,
+      type: FrameTypes.data,
       stream_id: stream_id,
       flags: %{end_stream: true},
       payload: %Frame.Data{data: data}
@@ -186,9 +186,9 @@ defmodule River.Conn do
     {:noreply, conn}
   end
 
-  defp handle_frame(conn, %{type: @settings, flags: %{ack: false}} = frame) do
+  defp handle_frame(conn, %{type: FrameTypes.settings, flags: %{ack: false}} = frame) do
     f = Encoder.encode(%Frame{
-          type: @settings,
+          type: FrameTypes.settings,
           stream_id: 0,
           flags: %{ack: true},
           payload: %Settings{
@@ -198,11 +198,11 @@ defmodule River.Conn do
     %{conn | settings: conn.settings ++ frame.payload.settings}
   end
 
-  defp handle_frame(%{recv_window: window} = conn, %{type: @data, length: len, stream_id: stream}) do
+  defp handle_frame(%{recv_window: window} = conn, %{type: FrameTypes.data, length: len, stream_id: stream}) do
     window = window - len
     if window <=  0 do
       frame1 = %Frame{
-        type: @window_update,
+        type: FrameTypes.window_update,
         stream_id: stream,
         payload: %WindowUpdate{
           increment: @flow_control_increment

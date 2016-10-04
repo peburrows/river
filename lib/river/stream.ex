@@ -1,6 +1,6 @@
 defmodule River.Stream do
-  use River.FrameTypes
-  alias River.{Frame, Encoder}
+  require River.FrameTypes
+  alias River.{Frame, Encoder, FrameTypes}
 
   @flow_control_increment 2_147_483_647 # the MAX!
 
@@ -25,7 +25,7 @@ defmodule River.Stream do
 
   defp increment_flow_control(%{window: 0, id: id, conn: %{socket: socket}} = stream, _frame) do
     encoded = %Frame{
-      type: @window_update,
+      type: FrameTypes.window_update,
       stream_id: id,
       payload: %Frame.WindowUpdate{
         increment: @flow_control_increment
@@ -41,15 +41,15 @@ defmodule River.Stream do
     end
   end
 
-  defp transition_state(%{state: :idle} = stream, %{type: @headers}),
+  defp transition_state(%{state: :idle} = stream, %{type: FrameTypes.headers}),
     do: %{stream | state: :open}
-  defp transition_state(%{state: :idle} = stream, %{type: @push_promise}),
+  defp transition_state(%{state: :idle} = stream, %{type: FrameTypes.push_promise}),
     do: %{stream | state: :reserved}
-  defp transition_state(%{state: :reserved} = stream, %{type: @headers}),
+  defp transition_state(%{state: :reserved} = stream, %{type: FrameTypes.headers}),
     do: %{stream | state: :half_closed}
   defp transition_state(%{state: :open} = stream, %{flags: %{end_stream: true}}),
     do: %{stream | state: :half_closed}
-  defp transition_state(stream, %{type: @rst_stream}),
+  defp transition_state(stream, %{type: FrameTypes.rst_stream}),
     do: %{stream | state: :closed}
   defp transition_state(stream, _),
     do: stream

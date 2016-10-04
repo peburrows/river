@@ -1,6 +1,6 @@
 defmodule River.Response do
-  use River.FrameTypes
-  alias River.{Response, Frame, Flags}
+  require River.FrameTypes
+  alias River.{Response, Frame, Flags, FrameTypes}
 
   defstruct [
     code:         nil,
@@ -12,26 +12,26 @@ defmodule River.Response do
     body:         "",
   ]
 
-  def add_frame(%__MODULE__{} = response, %Frame{type: @data} = frame) do
+  def add_frame(%__MODULE__{} = response, %Frame{type: FrameTypes.data} = frame) do
     %{response |
       frames: [frame | response.frames],
       body: response.body <> frame.payload.data
     } |> handle_flags(frame)
   end
 
-  def add_frame(%__MODULE__{} = response, %Frame{type: @headers} = frame) do
+  def add_frame(%__MODULE__{} = response, %Frame{type: FrameTypes.headers} = frame) do
     %{response | frames:  [frame | response.frames]}
     |> add_headers(frame.payload.headers)
     |> handle_flags(frame)
   end
 
-  def add_frame(%__MODULE__{} = response, %Frame{type: @continuation} = frame) do
+  def add_frame(%__MODULE__{} = response, %Frame{type: FrameTypes.continuation} = frame) do
     %{response | frames: [frame | response.frames]}
     |> add_headers(frame.payload.headers)
     |> handle_flags(frame)
   end
 
-  def add_frame(%__MODULE__{} = response, %Frame{type: @rst_stream, payload: code} = frame) do
+  def add_frame(%__MODULE__{} = response, %Frame{type: FrameTypes.rst_stream, payload: code} = frame) do
     %{response |
       frames: [frame | response.frames],
       closed: true, __status: :error,

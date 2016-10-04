@@ -1,5 +1,4 @@
 defmodule River.StreamHandler do
-  use River.FrameTypes
   alias River.{Response, Frame, Stream}
 
   def start_link(opts, %Stream{}=stream) do
