@@ -41,7 +41,8 @@ defmodule River.Stream do
     end
   end
 
-  defp increment_flow_control(stream, _frame), do: stream
+  defp increment_flow_control(stream, _frame),
+    do: stream
 
   defp transition_state(%{state: :idle} = stream, %{type: FrameTypes.headers}),
     do: %{stream | state: :open}

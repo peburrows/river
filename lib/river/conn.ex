@@ -137,23 +137,12 @@ defmodule River.Conn do
     %{conn | stream_id: id, streams: count + 1}
   end
 
-  defp send_headers(%{send_ctx: ctx, socket: socket, host: host, stream_id: id} = conn,
-    %{headers: headers, method: method, uri: %{path: path}} = req) do
-    headers = [
-      {":method",    (method |> Atom.to_string |> String.upcase)},
-      {":scheme",    "https"},
-      {":path",      path},
-      # this should probably be req.authority instead
-      {":authority", host},
-      {"accept",     "*/*"},
-      {"user-agent", "River/0.0.1"},
-    ] ++ headers
-
+  defp send_headers(%{send_ctx: ctx, socket: socket, stream_id: id} = conn, req) do
     frame = %Frame{
       type: FrameTypes.headers,
       stream_id: id,
       flags: header_flags(req),
-      payload: %Frame.Headers{headers: headers}
+      payload: %Frame.Headers{headers: Request.header_list(req)}
     } |> Encoder.encode(ctx)
 
     :ssl.send(socket, frame)

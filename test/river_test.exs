@@ -27,7 +27,7 @@ defmodule RiverTest do
       assert byte_size(resp.body) > 0
     end
 
-    @tag external: true, timeout: 120_000
+    @tag external: true, timeout: 120_000, slow: true
     test "a GET for a big file that requires flow window increments" do
       assert {:ok, %River.Response{code: 200} = resp} = River.Client.get("https://http2.golang.org/file/go.src.tar.gz", 1_000)
       assert resp.body
