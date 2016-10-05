@@ -1,6 +1,6 @@
 defmodule River.Request do
   defstruct [
-    headers: [],
+    headers: [{"user-agent", "River/#{River.Mixfile.project[:version]}"}],
     uri:     nil,
     method:  :get,
     data:    nil
@@ -15,14 +15,14 @@ defmodule River.Request do
 
   def add_headers(request, [_ | headers]), do: add_headers(request, headers)
 
-  def header_list(%{uri: %{scheme: scheme, path: path, authority: auth}, method: method, headers: headers}) do
+  def header_list(%{uri: %{scheme: scheme, path: path, authority: auth},
+                    method: method, headers: headers}) do
     [
       {":method",    (method |> Atom.to_string |> String.upcase)},
       {":scheme",    scheme},
       {":path",      path},
       {":authority", auth},
       # {"accept",     "*/*"},
-      # {"user-agent", "River/0.0.1"},
     ] ++ headers
   end
 
