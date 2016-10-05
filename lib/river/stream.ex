@@ -18,7 +18,7 @@ defmodule River.Stream do
     |> handle_flow_control(frame)
   end
 
-  defp handle_flow_control(%{window: window} = stream, %{type: @data, length: l} = frame),
+  defp handle_flow_control(%{window: window} = stream, %{type: FrameTypes.data, length: l} = frame),
     do: increment_flow_control(%{stream | window: window - l}, frame)
   defp handle_flow_control(stream, _frame),
     do: stream
@@ -40,6 +40,8 @@ defmodule River.Stream do
         stream
     end
   end
+
+  defp increment_flow_control(stream, _frame), do: stream
 
   defp transition_state(%{state: :idle} = stream, %{type: FrameTypes.headers}),
     do: %{stream | state: :open}

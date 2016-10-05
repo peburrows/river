@@ -112,8 +112,8 @@ defmodule River.Conn do
     make_request(req, parent, conn)
   end
 
-  defp make_request(%Request{method: method, uri: %{path: path}}=req, parent,
-    %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
+  defp make_request(%Request{}=req, parent, %{socket: socket}=conn) do
+    # %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
 
     :ssl.setopts(socket, [active: true])
 
@@ -128,7 +128,6 @@ defmodule River.Conn do
 
   defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
     id = id + 2
-    # {:ok, _} = DynamicSupervisor.start_child(River.StreamSupervisor, [[name: :"stream-#{host}-#{id}"], conn.socket, parent])
     {:ok, _} =
       DynamicSupervisor.start_child(River.StreamSupervisor, [
             [name: :"stream-#{host}-#{id}"],

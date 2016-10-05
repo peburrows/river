@@ -11,7 +11,7 @@ defmodule River.StreamHandler do
   end
 
   def add_frame(pid, %Frame{} = frame) do
-    Agent.cast(pid, fn({%{listener: cpid, window: window, conn: %{socket: socket}}=stream, response}) ->
+    Agent.cast(pid, fn({%{listener: cpid} = stream, response}) ->
       stream = Stream.add_frame(stream, frame)
       case Response.add_frame(response, frame) do
         %Response{closed: true, __status: :error} = r ->
@@ -44,7 +44,7 @@ defmodule River.StreamHandler do
   def stop(pid),
     do: Agent.stop(pid)
 
-  defp message(pid, cpid, what) do
+  defp message(_pid, cpid, what) do
     case cpid do
       nil -> nil
       c   -> send(c, what)
