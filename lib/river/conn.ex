@@ -70,7 +70,7 @@ defmodule River.Conn do
     receive do
       {:ok, response} ->
         {:ok, response}
-      :frame ->
+      {:frame, _frame} ->
         listen(timeout)
       other ->
         other
