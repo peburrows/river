@@ -20,6 +20,6 @@ defmodule River.Client do
     {:ok, conn} = River.Conn.create(uri.host)
     River.Conn.request!(conn, %Request{method: :post, uri: uri, data: data}, timeout)
   end
-  def post(uri, data, timeout), do: post(URI.parse(uri), data, timeout)
 
+  def post(uri, data, timeout), do: post(URI.parse(uri), data, timeout)
 end

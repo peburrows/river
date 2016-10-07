@@ -21,7 +21,7 @@ defmodule River.StreamHandler do
           message_and_close(pid, cpid, {:ok, r})
           {stream, r}
         r ->
-          message(pid, cpid, {:data})
+          message(pid, cpid, :frame)
           {stream, r}
       end
     end)

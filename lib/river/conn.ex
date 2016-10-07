@@ -70,7 +70,7 @@ defmodule River.Conn do
     receive do
       {:ok, response} ->
         {:ok, response}
-      {:data} ->
+      :frame ->
         listen(timeout)
       other ->
         other
@@ -78,7 +78,6 @@ defmodule River.Conn do
         {:error, :timeout}
     end
   end
-
 
   def connect(_info, %Conn{host: host} = conn) do
     host = String.to_charlist(host)

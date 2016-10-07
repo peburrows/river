@@ -10,22 +10,32 @@ defmodule River.RequestTest do
     assert [{"user-agent", <<"River/", _::binary>>}] = request.headers
   end
 
+  test "a single header can be added", %{request: request} do
+    request = Request.add_header(request, {"test", "header"})
+    assert [_, {"test", "header"}] = request.headers
+  end
+
   test "headers can be added", %{request: request} do
-    headers = [{"hello", "world"}]
-    request = Request.add_headers(request, headers)
-    assert [{"user-agent", _}, {"hello", "world"}] = request.headers
+    header = {"hello", "world"}
+    request = Request.add_headers(request, [header])
+    assert [{"user-agent", _}, ^header] = request.headers
   end
 
   test "headers don't overwrite headers that already exist on request", %{request: request} do
-    headers = [{"content-type", "x-custom"}]
+    headers = [{"x-custom", "custom value"}]
     request = %{request | headers: headers}
-    request = Request.add_headers(request, [{"content-type", "x-custom-2"}])
+    request = Request.add_headers(request, [{"x-custom", "custom value 2"}])
 
     # we remove the user-agent header above when we update the struct
     assert [
-      {"content-type", "x-custom"},
-      {"content-type", "x-custom-2"}
+      {"x-custom", "custom value"},
+      {"x-custom", "custom value 2"}
     ] == request.headers
+  end
+
+  test "the user-agent header can be overwritten", %{request: request} do
+    request = Request.add_headers(request, [{"user-agent", "custom"}])
+    assert [{"user-agent", "custom"}] == request.headers
   end
 
   test "we cannot add a :path header manually", %{request: request} do
