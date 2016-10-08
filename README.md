@@ -50,15 +50,15 @@ River.Client.get("https://http2.golang.org/")
                      {"date", "Fri, 30 Sep 2016 04:26:34 GMT"}]}}
 ```
 
-#### Simple POST
+#### Simple PUT
 ```elixir
-River.Client.post("https://example.com/", "hello world")
+River.Client.put("https://example.com/", "hello world")
 => {:ok, %River.Response{...}}
 ```
 
 #### Request with timeout
 ```elixir
 # timeout unit is milliseconds
-River.Client.get("https://http2.golang.org/", 10)
+River.Client.get("https://http2.golang.org/", timeout: 10)
 => {:error, :timeout}
 ```
