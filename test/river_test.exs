@@ -5,7 +5,7 @@ defmodule RiverTest do
   describe "http2.golang.org" do
     @tag external: true
     test "timeout" do
-      assert {:error, :timeout} = River.Client.get("https://http2.golang.org/", 0)
+      assert {:error, :timeout} = River.Client.get("https://http2.golang.org/", timeout: 0)
     end
 
     @tag external: true
@@ -29,7 +29,7 @@ defmodule RiverTest do
 
     @tag external: true, timeout: 120_000, slow: true
     test "a GET for a big file that requires flow window increments" do
-      assert {:ok, %River.Response{code: 200} = resp} = River.Client.get("https://http2.golang.org/file/go.src.tar.gz", 1_000)
+      assert {:ok, %River.Response{code: 200} = resp} = River.Client.get("https://http2.golang.org/file/go.src.tar.gz", timeout: 1_000)
       assert resp.body
     end
 
