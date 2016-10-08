@@ -10,9 +10,9 @@ defmodule River.StreamHandler do
     end
   end
 
-  def add_frame(pid, %Frame{} = frame) do
+  def recv_frame(pid, %Frame{} = frame) do
     Agent.cast(pid, fn({%{listener: cpid} = stream, response}) ->
-      stream = Stream.add_frame(stream, frame)
+      stream = Stream.recv_frame(stream, frame)
       case Response.add_frame(response, frame) do
         %Response{closed: true, __status: :error} = r ->
           message_and_close(pid, cpid, {:error, r})
@@ -24,6 +24,12 @@ defmodule River.StreamHandler do
           message(pid, cpid, {:frame, frame})
           {stream, r}
       end
+    end)
+  end
+
+  def send_frame(pid, %Frame{} = frame) do
+    Agent.cast(pid, fn(%{listener: cpid} = stream, response) ->
+
     end)
   end
 
