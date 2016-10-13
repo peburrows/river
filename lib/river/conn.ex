@@ -4,7 +4,7 @@ defmodule River.Conn do
   require River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream, FrameTypes}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream, StreamHandler, FrameTypes}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
@@ -15,7 +15,7 @@ defmodule River.Conn do
     protocol:  "h2",
     send_ctx:  nil,
     recv_ctx:  nil,
-    send_window: 0,
+    send_window: @initial_window_size,
     recv_window: @initial_window_size,
     buffer:    "",
     socket:    nil,
@@ -66,6 +66,8 @@ defmodule River.Conn do
     listen(timeout)
   end
 
+  def initial_window_size, do: @initial_window_size
+
   defp listen(timeout) do
     receive do
       {:ok, response} ->
@@ -108,12 +110,10 @@ defmodule River.Conn do
   end
 
   def handle_cast({%Request{}=req, parent}, conn) do
-    make_request(req, parent, conn)
+    perform_request(req, parent, conn)
   end
 
-  defp make_request(%Request{}=req, parent, %{socket: socket}=conn) do
-    # %{host: host, stream_id: stream_id, socket: socket, send_ctx: ctx, streams: streams}=conn) do
-
+  defp perform_request(%Request{}=req, parent, %{socket: socket}=conn) do
     :ssl.setopts(socket, [active: true])
 
     conn =
@@ -127,12 +127,7 @@ defmodule River.Conn do
 
   defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
     id = id + 2
-    {:ok, _} =
-      DynamicSupervisor.start_child(River.StreamSupervisor, [
-            [name: :"stream-#{host}-#{id}"],
-            %Stream{conn: conn, id: id, listener: parent, window: @initial_window_size}
-          ])
-
+    {:ok, _} = StreamHandler.get_pid(conn, id, parent)
     %{conn | stream_id: id, streams: count + 1}
   end
 
@@ -148,11 +143,19 @@ defmodule River.Conn do
     conn
   end
 
+  # this isn't exactly right, as it doesn't allow us to send mutiple header frames
   defp header_flags(%{method: :get}), do: %{end_headers: true, end_stream: true}
   defp header_flags(_), do: %{end_headers: true}
 
   defp send_data(conn, %{method: :get}), do: conn
-  defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}) do
+
+  # we have sent all the data
+  defp send_data(conn, %{data: <<>>}), do: conn
+  # defp send_data(%{send_window: 0}=conn, req) do
+  #   # we need some internal buffer here - we should defer to the stream
+  # end
+  defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}=req) do
+    # StreamHandler.send_data
     frame = %Frame{
       type: FrameTypes.data,
       stream_id: stream_id,
@@ -161,7 +164,9 @@ defmodule River.Conn do
     } |> Encoder.encode
 
     :ssl.send(socket, frame)
-    conn
+
+    # this doesn't yet handle data that is too large for the flow control window...
+    %{conn | send_window: conn.send_window - byte_size(data)}
   end
 
   def handle_info({:ssl, _what, payload}, %{recv_ctx: ctx, buffer: buffer} = conn) do
@@ -195,12 +200,16 @@ defmodule River.Conn do
           increment: @flow_control_increment
         }}
 
+      # this is a blocking call, so we need to maybe move it into an asyc func
       :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
       %{conn | recv_window: window + @flow_control_increment}
     else
       %{conn | recv_window: window}
     end
+  end
 
+  defp handle_frame(%{send_window: window} = conn, %{type: FrameTypes.window_update, payload: %{increment: inc}}) do
+    %{conn | send_window: window + inc}
   end
 
   defp handle_frame(conn, %{flags: %{end_stream: true}}) do
@@ -215,9 +224,8 @@ defmodule River.Conn do
   defp decode_frames(conn, payload, ctx, stack) do
     case Frame.decode(payload, ctx) do
       {:ok, frame, more} ->
-        # we're assuming it exists, but that might be a bad assumption
-        pid = Process.whereis(:"stream-#{conn.host}-#{frame.stream_id}")
-        River.StreamHandler.add_frame(pid, frame)
+        {:ok, pid} = StreamHandler.get_pid(conn, frame.stream_id)
+        StreamHandler.recv_frame(pid, frame)
         conn = handle_frame(conn, frame)
         decode_frames(conn, more, ctx, [frame | stack])
       {:error, :invalid_frame, buffer} ->

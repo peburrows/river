@@ -6,24 +6,51 @@ defmodule River.Stream do
 
   defstruct [
     id:       0,
-    window:   0,
+    send_window: 0,
+    recv_window: 0,
     conn:     %River.Conn{},
     listener: nil,
     state:    :idle,
+    send_buffer: <<>>,
   ]
 
-  def add_frame(stream, frame) do
+  def recv_frame(stream, frame) do
     stream
     |> transition_state(frame)
     |> handle_flow_control(frame)
   end
 
-  defp handle_flow_control(%{window: window} = stream, %{type: FrameTypes.data, length: l} = frame),
-    do: increment_flow_control(%{stream | window: window - l}, frame)
+  # should we send *data* or send a frame?
+  def send_data(%{send_window: 0} = stream, data) when is_binary(data) do
+    %{stream | send_buffer: stream.send_buffer <> data}
+  end
+
+  def send_data(%{send_window: window} = stream, data)
+  when is_binary(data) and byte_size(data) <= window do
+    %{stream | send_window: stream.send_window - byte_size(data)}
+  end
+
+  def send_data(%{send_window: window} = stream, data) when is_binary(data) do
+    # need to handle the to_send data...
+    <<to_send::binary-size(window), rest::bitstring>> = data
+    %{stream | send_window: 0}
+    # |> do_send_data()
+    |> send_data(rest)
+  end
+
+  # this is mostly here just for testing
+  # defp do_send_data(%{conn: nil} = stream), do: stream
+  # # need to make sure the connection has space on the window, too
+  # defp do_send_data(%{conn: conn}, data)
+
+  defp handle_flow_control(%{recv_window: window} = stream, %{type: FrameTypes.data, length: l} = frame),
+    do: increment_flow_control(%{stream | recv_window: window - l}, frame)
+  defp handle_flow_control(%{send_window: window} = stream, %{type: FrameTypes.window_update, payload: %{increment: inc}}),
+    do: %{stream | send_window: window + inc}
   defp handle_flow_control(stream, _frame),
     do: stream
 
-  defp increment_flow_control(%{window: 0, id: id, conn: %{socket: socket}} = stream, _frame) do
+  defp increment_flow_control(%{recv_window: 0, id: id, conn: %{socket: socket}} = stream, _frame) do
     encoded = %Frame{
       type: FrameTypes.window_update,
       stream_id: id,
