@@ -82,5 +82,15 @@ defmodule River.StreamTest do
         send_window: 0
       } = Stream.send_data(stream, "howdy, Phil")
     end
+
+    test "recieving a WINDOW_UPDATE frame increments the send window" do
+      stream = %Stream{send_window: 5}
+      assert %Stream{
+        send_window: 15
+      } = Stream.recv_frame(stream, %Frame{type: FrameTypes.window_update,
+                                           payload: %Frame.WindowUpdate{
+                                             increment: 10
+                                           }})
+    end
   end
 end

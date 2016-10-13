@@ -1,5 +1,13 @@
 defmodule River.StreamHandler do
-  alias River.{Response, Frame, Stream}
+  alias River.{Response, Frame, Stream, Conn}
+  alias Experimental.DynamicSupervisor
+
+  def get_pid(%{host: host} = conn, id, parent \\ nil) do
+    DynamicSupervisor.start_child(River.StreamSupervisor, [
+          [name: :"stream-#{host}-#{id}"],
+          %Stream{conn: conn, id: id, listener: parent, recv_window: Conn.initial_window_size}
+        ])
+  end
 
   def start_link(opts, %Stream{}=stream) do
     case Agent.start_link(fn -> {stream, %Response{}} end, opts) do
@@ -45,10 +53,7 @@ defmodule River.StreamHandler do
     end)
   end
 
-  # kind of useless, but it prevents us from spreading
-  # implementation logic outside of this module
-  def stop(pid),
-    do: Agent.stop(pid)
+  def stop(pid), do: Agent.stop(pid)
 
   defp message(_pid, cpid, what) do
     case cpid do

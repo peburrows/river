@@ -20,6 +20,7 @@ defmodule River.Stream do
     |> handle_flow_control(frame)
   end
 
+  # should we send *data* or send a frame?
   def send_data(%{send_window: 0} = stream, data) when is_binary(data) do
     %{stream | send_buffer: stream.send_buffer <> data}
   end
@@ -42,9 +43,10 @@ defmodule River.Stream do
   # # need to make sure the connection has space on the window, too
   # defp do_send_data(%{conn: conn}, data)
 
-
   defp handle_flow_control(%{recv_window: window} = stream, %{type: FrameTypes.data, length: l} = frame),
     do: increment_flow_control(%{stream | recv_window: window - l}, frame)
+  defp handle_flow_control(%{send_window: window} = stream, %{type: FrameTypes.window_update, payload: %{increment: inc}}),
+    do: %{stream | send_window: window + inc}
   defp handle_flow_control(stream, _frame),
     do: stream
 
