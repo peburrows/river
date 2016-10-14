@@ -61,27 +61,32 @@ defmodule River.StreamTest do
 
   describe "sending data" do
     test "attempting to send with a send window of 0 appends to the send_buffer" do
-      stream = %Stream{send_window: 0, send_buffer: "xx"}
-      data   = "hello world"
-      stream = Stream.send_data(stream, data)
-      assert "xx" <> data == stream.send_buffer
+      stream = %Stream{send_window: 0, frame_buffer: ["xx"]}
+      frame = %Frame{type: FrameTypes.data,
+                     payload: %Frame.Data{data: "hello world"}}
+      stream = Stream.send_frame(stream, frame)
+      assert ["xx", ^frame] = stream.frame_buffer
     end
 
     test "sending with room on the send window decrements the window" do
       stream = %Stream{send_window: 100}
-      data = "hello world"
-      stream = Stream.send_data(stream, data)
-      assert <<>> == stream.send_buffer
+      frame = %Frame{type: FrameTypes.data,
+                     payload: %Frame.Data{data: "hello world"}}
+      stream = Stream.send_frame(stream, frame)
+      assert [] == stream.frame_buffer
       assert 89 == stream.send_window
     end
 
     test "sending more data than there is room in the send window moves the window to zero and puts the rest on the buffer" do
       stream = %Stream{send_window: 5}
       assert %Stream{
-        send_buffer: ", Phil",
-        send_window: 0
-      } = Stream.send_data(stream, "howdy, Phil")
-    end
+        frame_buffer: [_],
+        send_window: 5
+      } = Stream.send_frame(stream,
+        %Frame{type: FrameTypes.data,
+               payload: %Frame.Data{data: "howdy, Phil"}}
+        )
+      end
 
     test "recieving a WINDOW_UPDATE frame increments the send window" do
       stream = %Stream{send_window: 5}

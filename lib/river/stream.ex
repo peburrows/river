@@ -1,17 +1,18 @@
 defmodule River.Stream do
   require River.FrameTypes
-  alias River.{Frame, Encoder, FrameTypes}
+  alias River.{Frame, Encoder, FrameTypes, Conn}
 
   @flow_control_increment 2_147_483_647 # the MAX!
 
   defstruct [
     id:       0,
-    send_window: 0,
+    send_window: Conn.initial_window_size,
     recv_window: 0,
     conn:     %River.Conn{},
     listener: nil,
     state:    :idle,
     send_buffer: <<>>,
+    frame_buffer: [],
   ]
 
   def recv_frame(stream, frame) do
@@ -20,28 +21,34 @@ defmodule River.Stream do
     |> handle_flow_control(frame)
   end
 
-  # should we send *data* or send a frame?
-  def send_data(%{send_window: 0} = stream, data) when is_binary(data) do
-    %{stream | send_buffer: stream.send_buffer <> data}
+  # send_frame seems cleaner than send_data, but we might need to do send_data
+  # instead so that we can send as much data as the stream window allows (i.e a
+  # partial payload) also, we need a better way to track the connection AND
+  # stream flow windows and make sure we're keeping them in sync
+  # maybe we do that by not passing data to a stream to send until the conn
+  # has space to send? That seems hackish, although it would allow the conn to
+  # manage stream priorities better: it could pass data to stream handlers
+  # according to priority...
+  def send_frame(%{send_window: window} = stream,
+    %{type: FrameTypes.data, payload: %{data: data}} = frame) when byte_size(data) > window do
+
+    %{stream | frame_buffer: stream.frame_buffer ++ [frame]}
+  end
+  def send_frame(%{send_window: window, conn: %{socket: socket}} = stream,
+    %{type: FrameTypes.data, payload: %{data: data}} = frame) do
+
+    do_send_frame(socket, frame)
+    %{stream | send_window: window - byte_size(data)}
+  end
+  def send_frame(%{conn: %{socket: socket}} = stream, frame) do
+    do_send_frame(socket, frame)
+    # nothing changed
+    stream
   end
 
-  def send_data(%{send_window: window} = stream, data)
-  when is_binary(data) and byte_size(data) <= window do
-    %{stream | send_window: stream.send_window - byte_size(data)}
-  end
-
-  def send_data(%{send_window: window} = stream, data) when is_binary(data) do
-    # need to handle the to_send data...
-    <<to_send::binary-size(window), rest::bitstring>> = data
-    %{stream | send_window: 0}
-    # |> do_send_data()
-    |> send_data(rest)
-  end
-
-  # this is mostly here just for testing
-  # defp do_send_data(%{conn: nil} = stream), do: stream
-  # # need to make sure the connection has space on the window, too
-  # defp do_send_data(%{conn: conn}, data)
+  defp do_send_frame(nil, _), do: nil
+  defp do_send_frame(socket, frame),
+    do: :ssl.send(socket, Encoder.encode(frame))
 
   defp handle_flow_control(%{recv_window: window} = stream, %{type: FrameTypes.data, length: l} = frame),
     do: increment_flow_control(%{stream | recv_window: window - l}, frame)

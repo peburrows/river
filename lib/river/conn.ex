@@ -4,11 +4,14 @@ defmodule River.Conn do
   require River.FrameTypes
   use Bitwise
   alias Experimental.DynamicSupervisor
-  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder, Request, Stream, StreamHandler, FrameTypes}
+  alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder,
+               Request, Stream, StreamHandler, FrameTypes}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
   @flow_control_increment 2_147_483_647
+  @max_frame_size 16_384
+  # @max_frame_size 1048576
 
   defstruct [
     host:      nil,
@@ -21,8 +24,8 @@ defmodule River.Conn do
     socket:    nil,
     stream_id: -1,
     streams:   0,
-    settings:  [],
-    server_settings: []
+    send_settings: [],
+    recv_settings: [],
   ]
 
   def create(host, opts \\ []) do
@@ -50,7 +53,7 @@ defmodule River.Conn do
     conn = %{conn |
              send_ctx: send_ctx,
              recv_ctx: recv_ctx,
-             settings: [
+             send_settings: [
                MAX_CONCURRENT_STREAMS: 250,
                INITIAL_WINDOW_SIZE: @initial_window_size,
                HEADER_TABLE_SIZE: @default_header_table_size,
@@ -90,7 +93,7 @@ defmodule River.Conn do
 
         frame = %Frame{
           type: FrameTypes.settings,
-          payload: %Settings{settings: conn.settings}
+          payload: %Settings{settings: conn.send_settings}
         }
         encoded_frame = Encoder.encode(frame)
 
@@ -155,15 +158,31 @@ defmodule River.Conn do
   #   # we need some internal buffer here - we should defer to the stream
   # end
   defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}=req) do
-    # StreamHandler.send_data
-    frame = %Frame{
-      type: FrameTypes.data,
-      stream_id: stream_id,
-      flags: %{end_stream: true},
-      payload: %Frame.Data{data: data}
-    } |> Encoder.encode
-
-    :ssl.send(socket, frame)
+    # AHHH! duplication!
+    case data do
+      <<payload::binary-size(@max_frame_size) , rest::binary>> ->
+        frame =
+          %Frame{
+            type: FrameTypes.data,
+            stream_id: stream_id,
+            flags: %{end_stream: true},
+            payload: %Frame.Data{data: data}
+          }
+        {:ok, pid} = StreamHandler.get_pid(conn, stream_id)
+        StreamHandler.send_frame(pid, frame)
+        # send the data, and then call send_data again
+        send_data(conn, %{req | data: rest})
+      data ->
+        frame =
+          %Frame{
+            type: FrameTypes.data,
+            stream_id: stream_id,
+            flags: %{end_stream: true},
+            payload: %Frame.Data{data: data}
+          }
+        {:ok, pid} = StreamHandler.get_pid(conn, stream_id)
+        StreamHandler.send_frame(pid, frame)
+    end
 
     # this doesn't yet handle data that is too large for the flow control window...
     %{conn | send_window: conn.send_window - byte_size(data)}
@@ -187,7 +206,7 @@ defmodule River.Conn do
             settings: []
           }})
     :ssl.send(conn.socket, f)
-    %{conn | settings: conn.settings ++ frame.payload.settings}
+    %{conn | recv_settings: conn.recv_settings ++ frame.payload.settings}
   end
 
   defp handle_frame(%{recv_window: window} = conn, %{type: FrameTypes.data, length: len, stream_id: stream}) do
