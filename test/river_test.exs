@@ -16,13 +16,13 @@ defmodule RiverTest do
       assert byte_size(resp.body) > 0
     end
 
-    @tag external: true
-    test "a GET for JSON" do
-      assert {:ok, %River.Response{code: 200} = resp} =
-        River.Client.get("https://http2.golang.org/.well-known/h2interop/state")
-      assert byte_size(resp.body) > 0
-      assert <<"{", _::binary>> = resp.body
-    end
+    # @tag external: true
+    # test "a GET for JSON" do
+    #   assert {:ok, %River.Response{code: 200} = resp} =
+    #     River.Client.get("https://http2.golang.org/.well-known/h2interop/state")
+    #   assert byte_size(resp.body) > 0
+    #   assert <<"{", _::binary>> = resp.body
+    # end
 
     @tag external: true
     test "a GET for a PNG file" do
