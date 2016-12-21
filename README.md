@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/peburrows/river.svg?branch=master)](https://travis-ci.org/peburrows/river)
+
 # River
 
 **NOTE: River is a work in progress and should be considered _extremely_ beta.**
