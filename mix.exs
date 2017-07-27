@@ -4,34 +4,34 @@ defmodule River.Mixfile do
   def project do
     [app: :river,
      version: "0.0.4",
-     elixir: "~> 1.3",
-     description: description,
-     package: package,
+     elixir: "~> 1.5",
+     description: description(),
+     package: package(),
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     deps: deps()]
   end
 
   def application do
     [
       mod: {River, []},
-      applications: [:logger, :gen_stage, :ssl, :certifi]
+      applications: [:logger, :ssl, :certifi]
     ]
   end
 
   defp deps do
     [
       {:hpack, "~> 1.0.2"},
-      {:gen_stage, "~> 0.5"},
-      {:gen_state_machine, "~> 1.0.2"},
+      # {:gen_stage, "~> 0.12"},
+      {:gen_state_machine, "~> 2.0"},
       {:connection, "~> 1.0.4"},
-      {:certifi, "~> 0.7.0"},
-      {:ssl_verify_fun, "~> 1.0"},
-      {:ex_doc, "~> 0.13.0", only: :dev},
-      {:earmark, "~> 1.0", only: :dev},
-      {:mix_test_watch, "~> 0.2", only: [:test, :dev]},
-      {:credo, "~> 0.4", only: [:test, :dev]},
-      {:benchfella, "~> 0.3.0", only: [:test, :dev]},
+      {:certifi, "~> 1.2"},
+      {:ssl_verify_fun, "~> 1.1"},
+      {:ex_doc, "~> 0.16", only: :dev},
+      {:earmark, "~> 1.2", only: :dev},
+      {:mix_test_watch, "~> 0.4", only: [:test, :dev]},
+      {:credo, "~> 0.8", only: [:test, :dev]},
+      {:benchfella, "~> 0.3", only: [:test, :dev]},
     ]
   end
 

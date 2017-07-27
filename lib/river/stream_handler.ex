@@ -1,9 +1,15 @@
 defmodule River.StreamHandler do
   alias River.{Response, Frame, Stream, Conn}
-  alias Experimental.DynamicSupervisor
+
+  def child_spec(_) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []}
+    }
+  end
 
   def get_pid(%{host: host} = conn, id, parent \\ nil) do
-    DynamicSupervisor.start_child(River.StreamSupervisor, [
+    Supervisor.start_child(River.StreamSupervisor, [
           [name: :"stream-#{host}-#{id}"],
           %Stream{conn: conn, id: id, listener: parent, recv_window: Conn.initial_window_size}
         ])
