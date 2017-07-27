@@ -3,7 +3,7 @@ defmodule River.Conn do
   use Connection
   require River.FrameTypes
   use Bitwise
-  alias Experimental.DynamicSupervisor
+  # alias Experimental.DynamicSupervisor
   alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder,
                Request, Stream, StreamHandler, FrameTypes}
 
@@ -28,10 +28,18 @@ defmodule River.Conn do
     recv_settings: [],
   ]
 
+  def child_spec(_) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []}
+    }
+  end
+
   def create(host, opts \\ []) do
     name = Keyword.get(opts, :name, :"conn-#{host}")
 
-    DynamicSupervisor.start_child(
+    # DynamicSupervisor.start_child(
+    Supervisor.start_child(
       River.ConnectionSupervisor,
       [host, [name: name]]
     )
