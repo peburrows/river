@@ -40,7 +40,7 @@ defmodule River.Client do
   # private
 
   defp do_request(%URI{} = uri, opts) do
-    {:ok, conn} = River.Conn.create(uri.host)
+    {:ok, conn} = River.Conn.create(uri.host, uri.port)
     River.Conn.request!(conn, build_request(uri, opts), opts.timeout)
   end
 

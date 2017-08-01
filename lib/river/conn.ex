@@ -14,6 +14,7 @@ defmodule River.Conn do
 
   defstruct [
     host:      nil,
+    port:      nil,
     protocol:  "h2",
     send_ctx:  nil,
     recv_ctx:  nil,
@@ -34,17 +35,17 @@ defmodule River.Conn do
     }
   end
 
-  def create(host, opts \\ []) do
+  def create(host, port \\ 443, opts \\ []) do
     name = Keyword.get(opts, :name, :"conn-#{host}")
 
     Supervisor.start_child(
       River.ConnectionSupervisor,
-      [host, [name: name]]
+      [host, port, [name: name]]
     )
   end
 
-  def start_link(host, opts \\ []) do
-    case Connection.start_link(__MODULE__, %Conn{host: host}, opts) do
+  def start_link(host, port, opts \\ []) do
+    case Connection.start_link(__MODULE__, %Conn{host: host, port: port}, opts) do
       {:ok, pid} ->
         {:ok, pid}
       {:error, {:already_started, pid}} ->
@@ -90,10 +91,10 @@ defmodule River.Conn do
     end
   end
 
-  def connect(_info, %Conn{host: host} = conn) do
+  def connect(_info, %Conn{host: host, port: port} = conn) do
     host = String.to_charlist(host)
 
-    case :ssl.connect(host, 443, ssl_options(host)) do
+    case :ssl.connect(host, port, ssl_options(host)) do
       {:ok, socket} ->
         :ssl.send(socket, River.Frame.http2_header)
 
