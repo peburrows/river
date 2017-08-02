@@ -1,10 +1,34 @@
 defmodule River.Request do
+  @type headers :: [{binary, binary}] | %{binary => binary}
+
   defstruct [
     headers: [{"user-agent", "River/#{River.version}"}],
     uri:     nil,
     method:  :get,
     data:    nil
   ]
+
+  @doc """
+    Builds a request struct returning an error if the request would
+    be invalid.
+  """
+  @spec new(URI.t, atom, any, headers) ::
+    {:ok, Request.t} | {:error, :invalid_uri} | {:error, :invalid_method}
+  def new(_uri, _method, _data \\ nil, _headers \\ [])
+  def new(nil=_uri, _, _, _), do: {:error, :invalid_uri}
+  def new(%URI{scheme: nil}, _, _, _), do: {:error, :invalid_uri}
+  def new(%URI{authority: nil}, _, _, _), do: {:error, :invalid_uri}
+  def new(_, nil=_method, _, _), do: {:error, :invalid_method}
+  def new(%URI{path: nil}=uri, method, data, headers) do
+    path = if method == :options, do: "*", else: "/"
+    new(%{uri | path: path}, method, data, headers)
+  end
+  def new(uri, method, data, headers) do
+    req =
+      %__MODULE__{method: method, uri: uri, data: data}
+      |> add_headers(headers)
+    {:ok, req}
+  end
 
   def add_header(request, {_,_}=header),
     do: add_headers(request, [header])
@@ -37,5 +61,4 @@ defmodule River.Request do
       # {"accept",     "*/*"},
     ] ++ headers
   end
-
 end

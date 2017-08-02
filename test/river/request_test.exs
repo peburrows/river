@@ -6,6 +6,48 @@ defmodule River.RequestTest do
     { :ok, %{request: %Request{uri: URI.parse("https://google.com")}} }
   end
 
+  describe "Request.new/4" do
+    test "given a valid uri, method, data and headers" do
+      uri = URI.parse("https://localhost/")
+      method = :get
+      data = "data"
+      headers = [{"test-header", "value"}]
+      assert {:ok,
+        %Request{uri: uri, method: method, data: data,
+                 headers: [{"user-agent", "River/0.0.5"}] ++ headers}} ==
+        Request.new(uri, method, data, headers)
+    end
+
+    test "given a nil uri returns an :invalid_uri error" do
+      assert {:error, :invalid_uri} == Request.new(nil, :get)
+    end
+
+    test "given a nil method returns an :invalid_method error" do
+      uri = URI.parse("https://localhost/")
+      assert {:error, :invalid_method} == Request.new(uri, nil)
+    end
+
+    test "given a nil scheme returns an :invalid_uri error" do
+      uri = %URI{authority: "localhost", scheme: nil, path: "/"}
+      assert {:error, :invalid_uri} == Request.new(uri, :get)
+    end
+
+    test "given a nil authority returns an :invalid_uri error" do
+      uri = %URI{authority: nil, scheme: :https, path: "/"}
+      assert {:error, :invalid_uri} == Request.new(uri, :get)
+    end
+
+    test "given a nil path and :options method sets path to *" do
+      uri = %URI{authority: "localhost", scheme: :https, path: nil}
+      assert {:ok, %Request{uri: %URI{path: "*"}}} = Request.new(uri, :options)
+    end
+
+    test "given a nil path and :get method sets path to /" do
+      uri = %URI{authority: "localhost", scheme: :https, path: nil}
+      assert {:ok, %Request{uri: %URI{path: "/"}}} = Request.new(uri, :get)
+    end
+  end
+
   test "the default headers include the River user-agent", %{request: request} do
     assert [{"user-agent", <<"River/", _::binary>>}] = request.headers
   end
