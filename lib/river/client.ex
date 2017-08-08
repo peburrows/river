@@ -29,19 +29,19 @@ defmodule River.Client do
   def delete(uri, opts) when is_binary(uri),
     do: delete(URI.parse(uri), opts)
 
-  def request(%URI{} = uri, opts) when is_list(opts) do
-    {:ok, conn} = River.Conn.create(uri.host)
-    opts = default_opts(opts)
-    River.Conn.request!(conn, build_request(uri, opts), opts.timeout)
-  end
+  def request(%URI{} = uri, opts) when is_list(opts),
+    do: do_request(uri, opts)
   def request(uri, opts) when is_binary(uri),
     do: request(URI.parse(uri), opts)
 
   # private
 
   defp do_request(%URI{} = uri, opts) do
-    {:ok, conn} = River.Conn.create(uri.host, uri.port)
-    River.Conn.request!(conn, build_request(uri, opts), opts.timeout)
+    with {:ok, req} <- Request.new(uri, opts.method, opts.data, opts.headers),
+         {:ok, conn} <- River.Conn.create(uri.host, uri.port)
+    do
+      River.Conn.request!(conn, req, opts.timeout)
+    end
   end
 
   defp default_opts(opts) do
@@ -56,10 +56,5 @@ defmodule River.Client do
       method:  method,
       data:    data
     ], opts) |> default_opts()
-  end
-
-  defp build_request(uri, opts) do
-    %Request{uri: uri, data: opts.data, method: opts.method}
-    |> Request.add_headers(opts.headers)
   end
 end
