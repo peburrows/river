@@ -39,6 +39,15 @@ defmodule RiverTest do
     end
 
     @tag external: true
+    test "a GET with large headers" do
+      cookie = :crypto.strong_rand_bytes(30_000) |> Base.url_encode64()
+      headers = [{"cookie", cookie}]
+      assert {:ok, %River.Response{code: 200} = resp} =
+        River.Client.get("https://http2.golang.org/", headers: headers)
+      assert byte_size(resp.body) > 0
+    end
+
+    @tag external: true
     test "a PUT to the golang server" do
       body = "hello"
       assert {:ok, %River.Response{code: 200}=resp} =

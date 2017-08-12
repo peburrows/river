@@ -10,7 +10,6 @@ defmodule River.Conn do
   @initial_window_size 65_535
   @flow_control_increment 2_147_483_647
   @max_frame_size 16_384
-  # @max_frame_size 1048576
 
   defstruct [
     host:      nil,
@@ -141,21 +140,55 @@ defmodule River.Conn do
     %{conn | stream_id: id, streams: count + 1}
   end
 
-  defp send_headers(%{send_ctx: ctx, socket: socket, stream_id: id} = conn, req) do
-    frame = %Frame{
-      type: FrameTypes.headers,
-      stream_id: id,
-      flags: header_flags(req),
-      payload: %Frame.Headers{headers: Request.header_list(req)}
-    } |> Encoder.encode(ctx)
+  defp send_headers(%{send_ctx: ctx, socket: socket, stream_id: id} = conn, %{method: method} = req) do
+    fragments =
+      conn
+      |> header_block(req)
+      |> header_block_fragments(max_send_frame_size(conn))
+    frame_count = length(fragments)
 
-    :ssl.send(socket, frame)
+    frame_data =
+      fragments
+      |> Enum.with_index()
+      |> Enum.map(fn {fragment, i} ->
+        %Frame{
+          type: (if i == 0, do: FrameTypes.headers, else: FrameTypes.continuation),
+          stream_id: id,
+          flags: %{
+            end_headers: i == frame_count - 1,
+            end_stream: method == :get,
+          },
+          payload: %River.Frame.Headers{
+            header_block_fragment: fragment,
+          },
+          length: byte_size(fragment)
+        }
+        |> Encoder.encode(ctx)
+      end)
+      |> Enum.reduce(<<>>, &(&2 <> &1))
+      :ssl.send(socket, frame_data)
     conn
   end
 
-  # this isn't exactly right, as it doesn't allow us to send mutiple header frames
-  defp header_flags(%{method: :get}), do: %{end_headers: true, end_stream: true}
-  defp header_flags(_), do: %{end_headers: true}
+  defp header_block_fragments(block, max_size) do
+    case block do
+      <<fragment::binary-size(max_size), rest::binary>> ->
+        [fragment | header_block_fragments(rest, max_size)]
+      <<>> ->
+        []
+      fragment ->
+        [fragment]
+    end
+  end
+
+  defp max_send_frame_size(%{send_settings: settings}),
+    do: Keyword.get(settings, :MAX_FRAME_SIZE, @max_frame_size)
+
+  defp header_block(%{send_ctx: ctx} = _conn, request) do
+    request
+    |> Request.header_list()
+    |> HPack.encode(ctx)
+  end
 
   defp send_data(conn, %{method: :get}), do: conn
 
