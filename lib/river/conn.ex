@@ -4,7 +4,7 @@ defmodule River.Conn do
   require River.FrameTypes
   use Bitwise
   alias River.{Conn, Frame, Frame.Settings, Frame.WindowUpdate, Encoder,
-               Request, Stream, StreamHandler, FrameTypes}
+               Request, StreamHandler, FrameTypes}
 
   @default_header_table_size 4096
   @initial_window_size 65_535
@@ -71,7 +71,7 @@ defmodule River.Conn do
   end
 
   def request!(pid, %Request{}=req, timeout) do
-    Connection.cast(pid, {req, self})
+    Connection.cast(pid, {req, self()})
     listen(timeout)
   end
 
@@ -134,7 +134,7 @@ defmodule River.Conn do
     {:noreply, conn}
   end
 
-  defp add_stream(%{stream_id: id, streams: count, host: host}=conn, parent) do
+  defp add_stream(%{stream_id: id, streams: count}=conn, parent) do
     id = id + 2
     {:ok, _} = StreamHandler.get_pid(conn, id, parent)
     %{conn | stream_id: id, streams: count + 1}
@@ -197,10 +197,10 @@ defmodule River.Conn do
   # defp send_data(%{send_window: 0}=conn, req) do
   #   # we need some internal buffer here - we should defer to the stream
   # end
-  defp send_data(%{stream_id: stream_id, socket: socket} = conn, %{data: data}=req) do
+  defp send_data(%{stream_id: stream_id} = conn, %{data: data}=req) do
     # AHHH! duplication!
     case data do
-      <<payload::binary-size(@max_frame_size) , rest::binary>> ->
+      <<_payload::binary-size(@max_frame_size) , rest::binary>> ->
         frame =
           %Frame{
             type: FrameTypes.data,

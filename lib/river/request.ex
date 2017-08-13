@@ -35,7 +35,7 @@ defmodule River.Request do
   def add_headers(request, []),
     do: %{request | headers: Enum.reverse(request.headers)}
   # allow the user-agent to be overwritten
-  def add_headers(request, [{"user-agent", val}=ua | headers]) do
+  def add_headers(request, [{"user-agent", _val}=ua | headers]) do
     filtered = Enum.reject(request.headers, fn({key, _}) ->
       key == "user-agent"
     end)

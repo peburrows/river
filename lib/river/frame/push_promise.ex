@@ -1,5 +1,5 @@
 defmodule River.Frame.PushPromise do
-  alias River.{Frame, Frame.Headers}
+  alias River.Frame
 
   defstruct [
     padding:   0,
@@ -52,7 +52,7 @@ defmodule River.Frame.PushPromise do
     end
   end
 
-  def decode(frame, payload, ctx) do
+  def decode(frame, payload, _ctx) do
     [frame, payload] |> IO.inspect
   end
 end

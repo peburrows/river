@@ -1,7 +1,7 @@
 defmodule River.Encoder do
   require River.FrameTypes
   alias River.{Frame, FrameTypes}
-  alias River.Frame.{Data, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
+  alias River.Frame.Settings
 
   def encode(%Frame{} = frame, ctx \\ nil) do
     frame
@@ -14,7 +14,7 @@ defmodule River.Encoder do
     head <> body
   end
 
-  defp payload(%{type: FrameTypes.continuation, payload: %{header_block_fragment: fragment}} = frame, ctx) do
+  defp payload(%{type: FrameTypes.continuation, payload: %{header_block_fragment: fragment}} = frame, _ctx) do
     %{frame | __payload: fragment, length: byte_size(fragment)}
   end
 
@@ -33,14 +33,14 @@ defmodule River.Encoder do
     %{frame | __payload: body, length: byte_size(body)}
   end
 
-  defp payload(%{type: FrameTypes.headers, payload: %{header_block_fragment: fragment}} = frame, ctx) do
+  defp payload(%{type: FrameTypes.headers, payload: %{header_block_fragment: fragment}} = frame, _ctx) do
     %{frame | __payload: fragment}
     |> weighted_payload
     |> padded_payload
     |> put_length
   end
 
-  defp payload(%{type: FrameTypes.ping, flags: flags} = frame, _ctx) do
+  defp payload(%{type: FrameTypes.ping} = frame, _ctx) do
     %{frame | __payload: :binary.copy(<<0>>, 8), length: 8}
   end
 

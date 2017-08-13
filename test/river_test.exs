@@ -58,7 +58,7 @@ defmodule RiverTest do
     @tag external: true
     test "a large PUT to the golang server" do
       body = (for n <- 1..100_000, do: Integer.to_charlist(n)) |> Enum.join
-      assert {:ok, %River.Response{code: 200}=resp} =
+      assert {:ok, %River.Response{code: 200}} =
         River.Client.put("https://http2.golang.org/crc32", body)
     end
   end
@@ -66,7 +66,7 @@ defmodule RiverTest do
   describe "nghttp2.org" do
     @tag external: true
     test "a simple get" do
-      assert {:ok, %River.Response{code: 200} = ng_resp} =
+      assert {:ok, %River.Response{code: 200}} =
         River.Client.get("https://nghttp2.org/")
     end
   end

@@ -14,7 +14,7 @@ defmodule River.Frame do
   ]
 
   defimpl Inspect, for: River.Frame do
-    def inspect(frame, opts) do
+    def inspect(frame, _opts) do
       Enum.join [
         "%River.Frame{",
         "stream_id: #{inspect frame.stream_id}",
@@ -110,11 +110,4 @@ defmodule River.Frame do
 
   defp parse_flags(FrameTypes.window_update, _flags),
     do: %{}
-
-  defp frame_type(FrameTypes.settings),     do: :SETTINGS
-  defp frame_type(FrameTypes.headers),      do: :HEADERS
-  defp frame_type(FrameTypes.data),         do: :DATA
-  defp frame_type(FrameTypes.rst_stream),   do: :RST_STREAM
-  defp frame_type(FrameTypes.push_promise), do: :PUSH_PROMISE
-  defp frame_type(FrameTypes.goaway),       do: :GOAWAY
 end
