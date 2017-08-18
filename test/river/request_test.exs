@@ -14,7 +14,7 @@ defmodule River.RequestTest do
       headers = [{"test-header", "value"}]
       assert {:ok,
         %Request{uri: uri, method: method, data: data,
-                 headers: [{"user-agent", "River/0.0.5"}] ++ headers}} ==
+                 headers: [{"user-agent", "River/#{River.version}"}] ++ headers}} ==
         Request.new(uri, method, data, headers)
     end
 
