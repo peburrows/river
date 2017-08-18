@@ -12,17 +12,19 @@ River is a general-purpose HTTP client with eventual hopes of full HTTP/2 suppor
 
 ## Installation
 
-  1. Add River to your list of dependencies in `mix.exs`:
+1. Add River to your list of dependencies in `mix.exs`:
+```elixir
+def deps do
+  [{:river, "~> 0.0.6"}]
+end
+```
 
-        def deps do
-          [{:river, "~> 0.0.1"}]
-        end
-
-  2. Ensure River is started before your application:
-
-        def application do
-          [applications: [:river]]
-        end
+2. Ensure River is started before your application:
+```elixir
+def application do
+  [applications: [:river]]
+end
+```
 
 ## Caveats
 
