@@ -43,7 +43,7 @@ end
 
 #### Simple GET
 ```elixir
-River.Client.get("https://http2.golang.org/")
+River.get("https://http2.golang.org/")
 => {:ok,
  %River.Response{__status: :ok,
   body: "<html>\n<body>\n<h1>Go...",
@@ -56,13 +56,13 @@ River.Client.get("https://http2.golang.org/")
 
 #### Simple PUT
 ```elixir
-River.Client.put("https://example.com/", "hello world")
+River.put("https://example.com/", "hello world")
 => {:ok, %River.Response{...}}
 ```
 
 #### Request with timeout
 ```elixir
 # timeout unit is milliseconds
-River.Client.get("https://http2.golang.org/", timeout: 10)
+River.get("https://http2.golang.org/", timeout: 10)
 => {:error, :timeout}
 ```
