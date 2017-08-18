@@ -59,7 +59,7 @@ defmodule River.FrameTest do
 
     assert {:ok, %Frame{
                stream_id: 21,
-               length: length,
+               length: _length,
                flags: %{end_stream: true},
                payload: %Headers{
                  headers: ^headers

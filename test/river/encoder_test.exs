@@ -2,7 +2,7 @@ defmodule River.EncoderTest do
   use ExUnit.Case, async: true
   require River.FrameTypes
   alias River.{Frame, Encoder, FrameTypes}
-  alias River.Frame.{Data, Continuation, GoAway, Headers, Ping, Priority, PushPromise, RstStream, Settings, WindowUpdate}
+  alias River.Frame.{Data, Continuation, GoAway, Headers, Priority, PushPromise, RstStream, Settings, WindowUpdate}
 
   test "we can encode a data frame w/o padding" do
     assert <<11::24, FrameTypes.data::8, 1::8, 1::1, 3::31, "hello world">> =
@@ -44,7 +44,7 @@ defmodule River.EncoderTest do
               stream_id: 15,
               flags: %{end_headers: true},
               payload: %Continuation{
-                headers: headers
+                header_block_fragment: encoded,
               }}, ctx)
     end
   end
@@ -110,7 +110,7 @@ defmodule River.EncoderTest do
            stream_id: 9,
            type: FrameTypes.headers,
            payload: %Headers{
-             headers: headers
+             header_block_fragment: encoded,
            }
          }
        }
@@ -130,7 +130,7 @@ defmodule River.EncoderTest do
       pl = 10
       len = byte_size(context.encoded) + 10 + 1
 
-      assert <<^len::24, FrameTypes.headers::8, 0x8::8, 1::1, 9::31, pl::8, ^encoded::binary-size(enc_len), _pad::binary-size(pl)>> =
+      assert <<^len::24, FrameTypes.headers::8, 0x8::8, 1::1, 9::31, _pl::8, ^encoded::binary-size(enc_len), _pad::binary-size(pl)>> =
         Encoder.encode(%{context.frame | flags: %{padded: true}, payload: %{context.frame.payload | padding: pl}}, context.ctx)
     end
 
@@ -226,10 +226,9 @@ defmodule River.EncoderTest do
     test "we can encode w/o padding", context do
       encoded = context.encoded
       len = byte_size(encoded) + 4
-      prom_id = context.frame.payload.promised_stream_id
 
       assert <<^len::24, FrameTypes.push_promise::8, 0::8, 1::1, 9::31,
-        1::1, prom_id::31, ^encoded::binary>> =
+        1::1, _prom_id::31, ^encoded::binary>> =
         Encoder.encode(context.frame, context.ctx)
     end
 

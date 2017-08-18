@@ -5,7 +5,8 @@ defmodule River.Flags do
 
   def encode(%{} = flags) do
     flags
-    |> Enum.filter_map(fn({_k, v}) -> v end, fn({k, _v}) -> key_to_val(k) end)
+    |> Enum.filter(fn({_k, v}) -> v end)
+    |> Enum.map(fn({k, _v}) -> key_to_val(k) end)
     |> Enum.reduce(0, fn(el, acc) -> el ||| acc end)
   end
 

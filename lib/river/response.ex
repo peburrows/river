@@ -1,6 +1,6 @@
 defmodule River.Response do
   require River.FrameTypes
-  alias River.{Response, Frame, Flags, FrameTypes}
+  alias River.{Frame, FrameTypes}
 
   defstruct [
     code:         nil,

@@ -1,8 +1,8 @@
 defmodule River.Frame.Continuation do
-  alias River.{Frame, Frame.Headers}
 
   defstruct [
     headers:   [],
+    header_block_fragment: <<>>,
   ]
 
   defmodule Flags do

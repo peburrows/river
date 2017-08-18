@@ -4,6 +4,7 @@ defmodule River.Frame.Headers do
   defstruct [
     padding:   0,
     headers:   [],
+    header_block_fragment: <<>>,
     exclusive: false,
     stream_dependency: nil,
     weight:    nil

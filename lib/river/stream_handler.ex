@@ -42,7 +42,7 @@ defmodule River.StreamHandler do
   end
 
   def send_frame(pid, %Frame{} = frame) do
-    Agent.cast(pid, fn({%{listener: cpid} = stream, response}) ->
+    Agent.cast(pid, fn({%{listener: _cpid} = stream, response}) ->
       # how should we handle this here...?
       # this is why we need to handle
       stream = Stream.send_frame(stream, frame)
