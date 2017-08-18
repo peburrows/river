@@ -72,20 +72,22 @@ defmodule River.Conn do
 
   def request!(pid, %Request{}=req, timeout) do
     Connection.cast(pid, {req, self()})
-    listen(timeout)
+    listen(pid, timeout)
   end
 
   def initial_window_size, do: @initial_window_size
 
-  defp listen(timeout) do
+  defp listen(child, timeout) do
     receive do
       {:ok, response} ->
         {:ok, response}
       {:frame, _frame} ->
-        listen(timeout)
+        listen(child, timeout)
       other ->
         other
     after timeout ->
+        # this isn't the best way to do this, but it will work
+        Process.exit(child, :timeout)
         {:error, :timeout}
     end
   end
