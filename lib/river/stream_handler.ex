@@ -64,12 +64,8 @@ defmodule River.StreamHandler do
 
   def stop(pid), do: Agent.stop(pid)
 
-  defp message(_pid, cpid, what) do
-    case cpid do
-      nil -> nil
-      c   -> send(c, what)
-    end
-  end
+  defp message(_pid, nil, _what), do: nil
+  defp message(_pid, cpid, what), do: send(cpid, what)
 
   defp message_and_close(pid, cpid, what) do
     message(pid, cpid, what)

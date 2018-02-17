@@ -34,8 +34,6 @@ defmodule River.Client do
   def request(uri, opts) when is_binary(uri),
     do: request(URI.parse(uri), opts)
 
-  # private
-
   defp do_request(%URI{} = uri, opts) do
     with {:ok, req} <- Request.new(uri, opts.method, opts.data, opts.headers),
          {:ok, conn} <- River.Conn.create(uri.host, uri.port)
