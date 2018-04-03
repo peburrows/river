@@ -25,7 +25,7 @@ defmodule River.Mixfile do
       # {:gen_stage, "~> 0.12"},
       {:gen_state_machine, "~> 2.0"},
       {:connection, "~> 1.0.4"},
-      {:certifi, "~> 1.2"},
+      {:certifi, "~> 2.3"},
       {:ssl_verify_fun, "~> 1.1"},
       {:ex_doc, "~> 0.16", only: :dev},
       {:earmark, "~> 1.2", only: :dev},
