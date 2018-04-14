@@ -25,7 +25,7 @@ defmodule River.Mixfile do
     [
       {:hpack, "~> 1.0.2"},
       {:connection, "~> 1.0.4"},
-      {:certifi, "~> 2.2"},
+      {:certifi, "~> 2.3"},
       {:ssl_verify_fun, "~> 1.1"},
       {:ex_doc, "~> 0.16", only: :dev},
       {:earmark, "~> 1.2", only: :dev},
