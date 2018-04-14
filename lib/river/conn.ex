@@ -52,7 +52,7 @@ defmodule River.Conn do
   end
 
   def start_link(host, port, opts \\ []) do
-    case Connection.start_link(__MODULE__, %Conn{host: host, port: port}, opts) do
+    case Connection.start_link(__MODULE__, %Conn{host: host, ssl: port == 443, port: port}, opts) do
       {:ok, pid} ->
         {:ok, pid}
 
@@ -131,6 +131,7 @@ defmodule River.Conn do
   end
 
   def connect(_info, %Conn{host: host, port: port} = conn) do
+    IO.puts("gonna connect!")
     host = String.to_charlist(host)
 
     case :gen_tcp.connect(host, port, non_ssl_options(host)) do
@@ -146,10 +147,12 @@ defmodule River.Conn do
         :gen_tcp.send(socket, encoded_frame)
         {:ok, %{conn | socket: socket}}
 
-      {:error, _} ->
+      {:error, err} ->
+        IO.puts("got an error: #{inspect(err)}")
         {:backoff, 1000, conn}
 
-      _other ->
+      other ->
+        IO.puts("got some other message: #{inspect(other)}")
         {:backoff, 1000, conn}
     end
   end
@@ -230,7 +233,12 @@ defmodule River.Conn do
       end)
       |> Enum.reduce(<<>>, &(&2 <> &1))
 
-    :ssl.send(socket, frame_data)
+    if conn.ssl do
+      :ssl.send(socket, frame_data)
+    else
+      :gen_tcp.send(socket, frame_data)
+    end
+
     conn
   end
 
@@ -257,12 +265,8 @@ defmodule River.Conn do
   end
 
   defp send_data(conn, %{method: :get}), do: conn
-
-  # we have sent all the data
   defp send_data(conn, %{data: <<>>}), do: conn
-  # defp send_data(%{send_window: 0}=conn, req) do
-  #   # we need some internal buffer here - we should defer to the stream
-  # end
+
   defp send_data(%{stream_id: stream_id} = conn, %{data: data} = req) do
     # AHHH! duplication!
     case data do
@@ -300,7 +304,13 @@ defmodule River.Conn do
     {:noreply, conn}
   end
 
-  def handle_info(_message, conn) do
+  def handle_info({:tcp, _what, payload}, %{recv_ctx: ctx, buffer: buffer} = conn) do
+    conn = decode_frames(conn, buffer <> payload, ctx, [])
+    {:noreply, conn}
+  end
+
+  def handle_info(message, conn) do
+    IO.puts("message: #{inspect(message)} :: #{inspect(conn)}")
     {:noreply, conn}
   end
 
@@ -315,7 +325,12 @@ defmodule River.Conn do
         }
       })
 
-    :ssl.send(conn.socket, f)
+    if conn.ssl do
+      :ssl.send(conn.socket, f)
+    else
+      :gen_tcp.send(conn.socket, f)
+    end
+
     %{conn | recv_settings: conn.recv_settings ++ frame.payload.settings}
   end
 
@@ -336,7 +351,12 @@ defmodule River.Conn do
       }
 
       # this is a blocking call, so we need to maybe move it into an asyc func
-      :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
+      if conn.ssl do
+        :ssl.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
+      else
+        :gen_tcp.send(conn.socket, Encoder.encode(%{frame1 | stream_id: 0}))
+      end
+
       %{conn | recv_window: window + @flow_control_increment}
     else
       %{conn | recv_window: window}
@@ -386,13 +406,13 @@ defmodule River.Conn do
     ]
   end
 
-  defp non_ssl_options(host) do
+  defp non_ssl_options(_host) do
+    IO.puts("getting the nonssl opts")
+
     [
       :binary,
       {:packet, 0},
-      {:active, false},
-      {:depth, 99},
-      {:alpn_advertised_protocols, ["h2", "http/1.1"]}
+      {:active, false}
     ]
   end
 end
