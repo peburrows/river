@@ -4,27 +4,33 @@ defmodule River.Frame.DataTest do
 
   test "we can decode a frame from a non-padded payload" do
     payload = "hello"
+
     assert %Frame{
-      payload: %Data{
-        padding: 0,
-        data: ^payload
-      }
-    } = Data.decode(%Frame{length: byte_size(payload)}, payload)
+             payload: %Data{
+               padding: 0,
+               data: ^payload
+             }
+           } = Data.decode(%Frame{length: byte_size(payload)}, payload)
   end
 
   test "we can decode a frame from a padded payload" do
     payload = "hello"
     padding = "world"
-    pad_size= byte_size(padding)
+    pad_size = byte_size(padding)
     # we add one to the length to account for the pad-length byte
     payload_length = byte_size(payload <> padding) + 1
+
     assert %Frame{
-      payload: %Data{
-        padding: ^pad_size,
-        data: ^payload
-      },
-      flags: %Data.Flags{padded: true}
-    } = Data.decode(%Frame{length: payload_length, flags: %Data.Flags{padded: true}}, <<byte_size(padding)::8, payload::binary, padding::binary>>)
+             payload: %Data{
+               padding: ^pad_size,
+               data: ^payload
+             },
+             flags: %Data.Flags{padded: true}
+           } =
+             Data.decode(
+               %Frame{length: payload_length, flags: %Data.Flags{padded: true}},
+               <<byte_size(padding)::8, payload::binary, padding::binary>>
+             )
   end
 
   # test "we can extract flags properly" do

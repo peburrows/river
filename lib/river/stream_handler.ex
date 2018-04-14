@@ -10,30 +10,34 @@ defmodule River.StreamHandler do
 
   def get_pid(%{host: host} = conn, id, parent \\ nil) do
     Supervisor.start_child(River.StreamSupervisor, [
-          [name: :"stream-#{host}-#{id}"],
-          %Stream{conn: conn, id: id, listener: parent, recv_window: Conn.initial_window_size}
-        ])
+      [name: :"stream-#{host}-#{id}"],
+      %Stream{conn: conn, id: id, listener: parent, recv_window: Conn.initial_window_size()}
+    ])
   end
 
-  def start_link(opts, %Stream{}=stream) do
+  def start_link(opts, %Stream{} = stream) do
     case Agent.start_link(fn -> {stream, %Response{}} end, opts) do
       {:ok, pid} ->
         {:ok, pid}
+
       {:error, {:already_started, pid}} ->
         {:ok, pid}
     end
   end
 
   def recv_frame(pid, %Frame{} = frame) do
-    Agent.cast(pid, fn({%{listener: cpid} = stream, response}) ->
+    Agent.cast(pid, fn {%{listener: cpid} = stream, response} ->
       stream = Stream.recv_frame(stream, frame)
+
       case Response.add_frame(response, frame) do
         %Response{closed: true, __status: :error} = r ->
           message_and_close(pid, cpid, {:error, r})
           {stream, r}
+
         %Response{closed: true} = r ->
           message_and_close(pid, cpid, {:ok, r})
           {stream, r}
+
         r ->
           message(pid, cpid, {:frame, frame})
           {stream, r}
@@ -42,7 +46,7 @@ defmodule River.StreamHandler do
   end
 
   def send_frame(pid, %Frame{} = frame) do
-    Agent.cast(pid, fn({%{listener: _cpid} = stream, response}) ->
+    Agent.cast(pid, fn {%{listener: _cpid} = stream, response} ->
       # how should we handle this here...?
       # this is why we need to handle
       stream = Stream.send_frame(stream, frame)
@@ -51,13 +55,13 @@ defmodule River.StreamHandler do
   end
 
   def get_response(pid) do
-    Agent.get(pid, fn({_, response}) ->
+    Agent.get(pid, fn {_, response} ->
       response
     end)
   end
 
   def get_stream(pid) do
-    Agent.get(pid, fn({stream, _}) ->
+    Agent.get(pid, fn {stream, _} ->
       stream
     end)
   end
@@ -72,7 +76,7 @@ defmodule River.StreamHandler do
     # I don't really know the best way to clean up after ourselves here
     # I need to send a response to the concerned pid, and then stop myself
     # maybe these should be handled with cast calls...?
-    spawn(fn() ->
+    spawn(fn ->
       River.StreamHandler.stop(pid)
     end)
   end

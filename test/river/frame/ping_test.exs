@@ -4,8 +4,9 @@ defmodule River.Frame.PingTest do
 
   test "we can decode a single ping frame" do
     payload = <<1337::64>>
+
     assert %Frame{
-            payload: %Ping{payload: ^payload}
-    } = Ping.decode(%Frame{length: 8}, payload)
+             payload: %Ping{payload: ^payload}
+           } = Ping.decode(%Frame{length: 8}, payload)
   end
 end

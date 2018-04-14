@@ -2,14 +2,16 @@ defmodule River.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :river,
-     version: "0.0.7",
-     elixir: "~> 1.5",
-     description: description(),
-     package: package(),
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps()]
+    [
+      app: :river,
+      version: "0.0.7",
+      elixir: "~> 1.5",
+      description: description(),
+      package: package(),
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      deps: deps()
+    ]
   end
 
   def application do
@@ -22,16 +24,14 @@ defmodule River.Mixfile do
   defp deps do
     [
       {:hpack, "~> 1.0.2"},
-      # {:gen_stage, "~> 0.12"},
-      {:gen_state_machine, "~> 2.0"},
       {:connection, "~> 1.0.4"},
-      {:certifi, "~> 1.2"},
+      {:certifi, "~> 2.3"},
       {:ssl_verify_fun, "~> 1.1"},
       {:ex_doc, "~> 0.16", only: :dev},
       {:earmark, "~> 1.2", only: :dev},
       {:mix_test_watch, "~> 0.4", only: [:test, :dev]},
       {:credo, "~> 0.8", only: [:test, :dev]},
-      {:benchfella, "~> 0.3", only: [:test, :dev]},
+      {:benchfella, "~> 0.3", only: [:test, :dev]}
     ]
   end
 

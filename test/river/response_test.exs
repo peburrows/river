@@ -5,52 +5,71 @@ defmodule River.ResponseTest do
 
   test "adding a data frame appends the payload to the body" do
     assert %Response{
-      body:    "full body",
-      frames:  [%Frame{type: FrameTypes.data}]
-    } = Response.add_frame(
-      %Response{body: "full "},
-      %Frame{
-        type: FrameTypes.data,
-        payload: %Frame.Data{data: "body"}
-      })
+             body: "full body",
+             frames: [%Frame{type: FrameTypes.data()}]
+           } =
+             Response.add_frame(%Response{body: "full "}, %Frame{
+               type: FrameTypes.data(),
+               payload: %Frame.Data{data: "body"}
+             })
   end
 
   test "adding a header frame adds the headers to the header list" do
     headers = [{"status", "200"}, {"content-type", "html"}]
+
     assert %Response{
-      headers: ^headers,
-      frames:  [%Frame{type: FrameTypes.headers, payload: %Frame.Headers{headers: ^headers}}]
-    } = Response.add_frame(%Response{}, %Frame{type: FrameTypes.headers, payload: %Frame.Headers{headers: headers}})
+             headers: ^headers,
+             frames: [
+               %Frame{type: FrameTypes.headers(), payload: %Frame.Headers{headers: ^headers}}
+             ]
+           } =
+             Response.add_frame(%Response{}, %Frame{
+               type: FrameTypes.headers(),
+               payload: %Frame.Headers{headers: headers}
+             })
   end
 
   test "adding a continuation frame adds the headers to the header list" do
     headers = [{"random", "value"}]
+
     assert %Response{
-      headers: ^headers,
-      frames:  [%Frame{type: FrameTypes.continuation, payload: %Frame.Continuation{headers: ^headers}}]
-    } = Response.add_frame(%Response{}, %Frame{type: FrameTypes.continuation, payload: %Frame.Continuation{headers: headers}})
+             headers: ^headers,
+             frames: [
+               %Frame{
+                 type: FrameTypes.continuation(),
+                 payload: %Frame.Continuation{headers: ^headers}
+               }
+             ]
+           } =
+             Response.add_frame(%Response{}, %Frame{
+               type: FrameTypes.continuation(),
+               payload: %Frame.Continuation{headers: headers}
+             })
   end
 
   test "adding a headers frame with a status code sets the status" do
     assert %Response{
-      code: 200
-    } = Response.add_frame(
-      %Response{},
-      %Frame{
-        type: FrameTypes.headers,
-        payload: %Frame.Headers{headers: [{":status", "200"}]}
-      })
+             code: 200
+           } =
+             Response.add_frame(%Response{}, %Frame{
+               type: FrameTypes.headers(),
+               payload: %Frame.Headers{headers: [{":status", "200"}]}
+             })
   end
 
   test "adding a content type header sets the content type" do
     assert %Response{
-      content_type: "text/html"
-    } = Response.add_frame(%Response{}, %Frame{type: FrameTypes.headers, payload: %Frame.Headers{headers: [{"content-type", "text/html"}]}})
+             content_type: "text/html"
+           } =
+             Response.add_frame(%Response{}, %Frame{
+               type: FrameTypes.headers(),
+               payload: %Frame.Headers{headers: [{"content-type", "text/html"}]}
+             })
   end
 
   test "add a frame with a :END_STREAM flag should close the response" do
     assert %Response{
-      closed: true
-    } = Response.add_frame(%Response{}, %Frame{flags: %{end_stream: true}})
+             closed: true
+           } = Response.add_frame(%Response{}, %Frame{flags: %{end_stream: true}})
   end
 end

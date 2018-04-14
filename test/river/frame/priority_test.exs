@@ -3,13 +3,14 @@ defmodule River.Frame.PriorityTest do
   alias River.{Frame, Frame.Priority}
 
   test "we can extract a frame from a payload" do
+    # add one to the weight value to get a value 1-256
     assert %Frame{
-      payload: %Priority{
-        exclusive: true,
-        stream_dependency: 15,
-        weight: 10
-      }
-    } = Priority.decode(%Frame{length: 5}, <<1::1, 15::31, 9::8>>) # add one to the weight value to get a value 1-256
+             payload: %Priority{
+               exclusive: true,
+               stream_dependency: 15,
+               weight: 10
+             }
+           } = Priority.decode(%Frame{length: 5}, <<1::1, 15::31, 9::8>>)
   end
 
   test "an incomplete frame reports as such" do

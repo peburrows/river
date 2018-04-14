@@ -5,6 +5,7 @@ defmodule River.Frame.Ping do
 
   defmodule Flags do
     defstruct [:ack]
+
     def parse(flags) do
       %__MODULE__{
         ack: River.Flags.has_flag?(flags, 0x1)
@@ -20,12 +21,14 @@ defmodule River.Frame.Ping do
   def decode(%Frame{length: len, flags: flags} = frame, payload) do
     case payload do
       <<data::binary-size(len)>> ->
-        %{frame |
-          payload: %__MODULE__{
-            payload: data,
-            ack:     Map.get(flags, :ack, false)
-          }
-         }
+        %{
+          frame
+          | payload: %__MODULE__{
+              payload: data,
+              ack: Map.get(flags, :ack, false)
+            }
+        }
+
       _ ->
         {:error, :invalid_frame}
     end

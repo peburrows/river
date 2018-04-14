@@ -4,8 +4,8 @@ defmodule River.Frame.RstStreamTest do
 
   test "we can decode a single frame" do
     assert %Frame{
-      payload: %RstStream{error: :PROTOCOL_ERROR}
-    } = RstStream.decode(%Frame{}, <<0x1::32>>)
+             payload: %RstStream{error: :PROTOCOL_ERROR}
+           } = RstStream.decode(%Frame{}, <<0x1::32>>)
   end
 
   test "an incomplete frame reports as such" do

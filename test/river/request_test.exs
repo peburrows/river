@@ -3,7 +3,7 @@ defmodule River.RequestTest do
   alias River.{Request}
 
   setup do
-    { :ok, %{request: %Request{uri: URI.parse("https://google.com")}} }
+    {:ok, %{request: %Request{uri: URI.parse("https://google.com")}}}
   end
 
   describe "Request.new/4" do
@@ -12,10 +12,14 @@ defmodule River.RequestTest do
       method = :get
       data = "data"
       headers = [{"test-header", "value"}]
+
       assert {:ok,
-        %Request{uri: uri, method: method, data: data,
-                 headers: [{"user-agent", "River/#{River.version}"}] ++ headers}} ==
-        Request.new(uri, method, data, headers)
+              %Request{
+                uri: uri,
+                method: method,
+                data: data,
+                headers: [{"user-agent", "River/#{River.version()}"}] ++ headers
+              }} == Request.new(uri, method, data, headers)
     end
 
     test "given a nil uri returns an :invalid_uri error" do
@@ -70,9 +74,9 @@ defmodule River.RequestTest do
 
     # we remove the user-agent header above when we update the struct
     assert [
-      {"x-custom", "custom value"},
-      {"x-custom", "custom value 2"}
-    ] == request.headers
+             {"x-custom", "custom value"},
+             {"x-custom", "custom value 2"}
+           ] == request.headers
   end
 
   test "the user-agent header can be overwritten", %{request: request} do

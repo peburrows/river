@@ -2,7 +2,8 @@ defmodule River.Frame.Settings do
   alias River.Frame
 
   defmodule Flags do
-    defstruct [ack: false]
+    defstruct ack: false
+
     def parse(flags) do
       %__MODULE__{
         ack: River.Flags.has_flag?(flags, 0x1)
@@ -10,23 +11,20 @@ defmodule River.Frame.Settings do
     end
   end
 
-  defstruct [
-    settings: []
-  ]
+  defstruct settings: []
 
   def decode(%Frame{payload: %__MODULE__{settings: settings}} = frame, <<>>) do
-    %{frame |
-      payload: %{frame.payload | settings: Enum.reverse(settings)}
-    }
+    %{frame | payload: %{frame.payload | settings: Enum.reverse(settings)}}
   end
 
   def decode(%Frame{payload: <<>>} = frame, data),
     do: decode(%{frame | payload: %__MODULE__{}}, data)
 
   def decode(%Frame{payload: payload} = frame, <<id::16, value::32, rest::binary>>) do
-    decode(%{frame |
-             payload: %{payload | settings: [{name(id), value} | payload.settings]}
-            }, rest)
+    decode(
+      %{frame | payload: %{payload | settings: [{name(id), value} | payload.settings]}},
+      rest
+    )
   end
 
   def name(0x1), do: :HEADER_TABLE_SIZE
@@ -35,6 +33,7 @@ defmodule River.Frame.Settings do
   def name(0x4), do: :INITIAL_WINDOW_SIZE
   def name(0x5), do: :MAX_FRAME_SIZE
   def name(0x6), do: :MAX_HEADER_LIST_SIZE
+  def name(_), do: :UNKNOWN
 
   def setting(:HEADER_TABLE_SIZE), do: 0x1
   def setting(:ENABLE_PUSH), do: 0x2

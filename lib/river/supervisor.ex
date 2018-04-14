@@ -10,6 +10,7 @@ defmodule River.Supervisor do
       supervisor(River.ConnectionSupervisor, []),
       supervisor(River.StreamSupervisor, [])
     ]
+
     supervise(children, strategy: :one_for_one)
   end
 end

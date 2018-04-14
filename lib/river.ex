@@ -8,9 +8,7 @@ defmodule River do
   defdelegate delete(uri, opts \\ []), to: Client
   defdelegate request(uri, opts), to: Client
 
-  def start(_type, _args),
-    do: River.Supervisor.start_link()
+  def start(_type, _args), do: River.Supervisor.start_link()
 
-  def version,
-    do: River.Mixfile.project[:version]
+  def version, do: River.Mixfile.project()[:version]
 end
