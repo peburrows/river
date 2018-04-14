@@ -4,10 +4,10 @@ defmodule River.Frame.WindowUpdateTest do
 
   test "we can decode a window update payload" do
     assert %Frame{
-      payload: %WindowUpdate{
-        increment: 100
-      }
-    } = WindowUpdate.decode(%Frame{}, <<1::1, 100::31>>)
+             payload: %WindowUpdate{
+               increment: 100
+             }
+           } = WindowUpdate.decode(%Frame{}, <<1::1, 100::31>>)
   end
 
   test "an invalid payload reports as such" do

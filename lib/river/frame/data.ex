@@ -1,17 +1,16 @@
 defmodule River.Frame.Data do
   alias River.Frame
 
-  defstruct [
-    padding:   0,
-    data:   <<>>,
-  ]
+  defstruct padding: 0,
+            data: <<>>
 
   defmodule Flags do
     defstruct [:end_stream, :padded]
+
     def parse(flags) do
       %__MODULE__{
         end_stream: River.Flags.has_flag?(flags, 0x1),
-        padded:     River.Flags.has_flag?(flags, 0x8)
+        padded: River.Flags.has_flag?(flags, 0x8)
       }
     end
   end
@@ -21,10 +20,14 @@ defmodule River.Frame.Data do
 
     case data do
       <<payload::binary-size(data_len), _pad::binary-size(pad_len)>> ->
-        %{frame | payload: %__MODULE__{
-             padding: pad_len,
-             data:    payload
-          }}
+        %{
+          frame
+          | payload: %__MODULE__{
+              padding: pad_len,
+              data: payload
+            }
+        }
+
       _ ->
         {:error, :invalid_frame}
     end
@@ -34,9 +37,9 @@ defmodule River.Frame.Data do
     case data do
       <<payload::binary-size(len)>> ->
         %{frame | payload: %__MODULE__{data: payload}}
+
       _ ->
         {:error, :invalid_frame}
     end
   end
-
 end

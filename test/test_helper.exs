@@ -1,2 +1,2 @@
-ExUnit.configure exclude: [external: true]
+ExUnit.configure(exclude: [external: true])
 ExUnit.start()

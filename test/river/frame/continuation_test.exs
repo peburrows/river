@@ -10,10 +10,10 @@ defmodule River.Frame.ContinuationTest do
 
   test "we can decode a frame", %{headers: headers, ctx: ctx, payload: payload} do
     assert %Frame{
-      payload: %Continuation{
-        headers: ^headers
-      }
-    } = Continuation.decode(%Frame{length: byte_size(payload)}, payload, ctx)
+             payload: %Continuation{
+               headers: ^headers
+             }
+           } = Continuation.decode(%Frame{length: byte_size(payload)}, payload, ctx)
   end
 
   # test "we can decode a frame from a padded payload", %{headers: headers, ctx: ctx, payload: payload} do
