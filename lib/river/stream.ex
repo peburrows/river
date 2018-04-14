@@ -11,6 +11,7 @@ defmodule River.Stream do
     conn:     %River.Conn{},
     listener: nil,
     state:    :idle,
+    ssl:      true,
     send_buffer: <<>>,
     frame_buffer: [],
   ]
