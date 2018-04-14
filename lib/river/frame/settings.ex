@@ -33,6 +33,7 @@ defmodule River.Frame.Settings do
   def name(0x4), do: :INITIAL_WINDOW_SIZE
   def name(0x5), do: :MAX_FRAME_SIZE
   def name(0x6), do: :MAX_HEADER_LIST_SIZE
+  def name(_), do: :UNKNOWN
 
   def setting(:HEADER_TABLE_SIZE), do: 0x1
   def setting(:ENABLE_PUSH), do: 0x2

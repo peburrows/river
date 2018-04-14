@@ -12,7 +12,7 @@ defmodule RiverTest do
     test "multiple requests on the same connection return the right thing!" do
       c = 100
       # make sure it's all on the same conn
-      {:ok, conn} = River.Conn.create("http2.golang.org", 443)
+      {:ok, _conn} = River.Conn.create("http2.golang.org", 443)
 
       all =
         1..c
