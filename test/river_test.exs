@@ -94,7 +94,7 @@ defmodule RiverTest do
       body = for(n <- 1..100_000, do: Integer.to_charlist(n)) |> Enum.join()
 
       assert {:ok, %River.Response{code: 200}} =
-               River.Client.put("https://http2.golang.org/crc32", body)
+               River.Client.put("https://http2.golang.org/crc32", body) |> IO.inspect()
     end
   end
 

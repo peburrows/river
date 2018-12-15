@@ -105,12 +105,19 @@ defmodule River.Conn do
     end
   end
 
-  def connect(_info, %Conn{ssl: true, host: host, port: port} = conn) do
+  def connect(_info, %Conn{ssl: ssl, host: host, port: port} = conn) do
     host = String.to_charlist(host)
 
-    case :ssl.connect(host, port, ssl_options(host)) do
+    {lib, options} =
+      if ssl do
+        {:ssl, ssl_options(host)}
+      else
+        {:gen_tcp, non_ssl_options(host)}
+      end
+
+    case lib.connect(host, port, options) do
       {:ok, socket} ->
-        :ssl.send(socket, River.Frame.http2_header())
+        lib.send(socket, River.Frame.http2_header())
 
         frame = %Frame{
           type: FrameTypes.settings(),
@@ -119,7 +126,7 @@ defmodule River.Conn do
 
         encoded_frame = Encoder.encode(frame)
 
-        :ssl.send(socket, encoded_frame)
+        lib.send(socket, encoded_frame)
         {:ok, %{conn | socket: socket}}
 
       {:error, _} ->
@@ -130,62 +137,52 @@ defmodule River.Conn do
     end
   end
 
-  def connect(_info, %Conn{host: host, port: port} = conn) do
-    IO.puts("gonna connect!")
-    host = String.to_charlist(host)
+  # def connect(_info, %Conn{host: host, port: port} = conn) do
+  #   IO.puts("gonna connect!")
+  #   host = String.to_charlist(host)
 
-    case :gen_tcp.connect(host, port, non_ssl_options(host)) do
-      {:ok, socket} ->
-        :gen_tcp.send(socket, River.Frame.http2_header())
+  #   case :gen_tcp.connect(host, port, non_ssl_options(host)) do
+  #     {:ok, socket} ->
+  #       :gen_tcp.send(socket, River.Frame.http2_header())
 
-        frame = %Frame{
-          type: FrameTypes.settings(),
-          payload: %Settings{settings: conn.send_settings}
-        }
+  #       frame = %Frame{
+  #         type: FrameTypes.settings(),
+  #         payload: %Settings{settings: conn.send_settings}
+  #       }
 
-        encoded_frame = Encoder.encode(frame)
-        :gen_tcp.send(socket, encoded_frame)
-        {:ok, %{conn | socket: socket}}
+  #       encoded_frame = Encoder.encode(frame)
+  #       :gen_tcp.send(socket, encoded_frame)
+  #       {:ok, %{conn | socket: socket}}
 
-      {:error, err} ->
-        IO.puts("got an error: #{inspect(err)}")
-        {:backoff, 1000, conn}
+  #     {:error, err} ->
+  #       IO.puts("got an error: #{inspect(err)}")
+  #       {:backoff, 1000, conn}
 
-      other ->
-        IO.puts("got some other message: #{inspect(other)}")
-        {:backoff, 1000, conn}
-    end
-  end
+  #     other ->
+  #       IO.puts("got some other message: #{inspect(other)}")
+  #       {:backoff, 1000, conn}
+  #   end
+  # end
 
-  def disconnect(_info, %Conn{ssl: true, socket: socket} = conn) do
+  def disconnect(_info, %Conn{ssl: ssl, socket: socket} = conn) do
+    lib = if ssl, do: :ssl, else: :gen_tcp
     # we need to disconnect from the ssl socket
-    :ssl.close(socket)
+    lib.close(socket)
     {:stop, :exit, conn}
   end
 
-  def disconnect(_info, %Conn{socket: socket} = conn) do
-    :gen_tcp.close(socket)
-    {:stop, :exit, conn}
-  end
+  # def disconnect(_info, %Conn{socket: socket} = conn) do
+  #   :gen_tcp.close(socket)
+  #   {:stop, :exit, conn}
+  # end
 
   def handle_cast({%Request{} = req, parent}, conn) do
     perform_request(req, parent, conn)
   end
 
-  defp perform_request(%Request{} = req, parent, %{ssl: true, socket: socket} = conn) do
-    :ssl.setopts(socket, active: true)
-
-    conn =
-      conn
-      |> add_stream(parent)
-      |> send_headers(req)
-      |> send_data(req)
-
-    {:noreply, conn}
-  end
-
-  defp perform_request(%Request{} = req, parent, %{socket: socket} = conn) do
-    :inet.setopts(socket, active: true)
+  defp perform_request(%Request{} = req, parent, %{ssl: ssl, socket: socket} = conn) do
+    lib = if ssl, do: :ssl, else: :inet
+    lib.setopts(socket, active: true)
 
     conn =
       conn
@@ -407,8 +404,6 @@ defmodule River.Conn do
   end
 
   defp non_ssl_options(_host) do
-    IO.puts("getting the nonssl opts")
-
     [
       :binary,
       {:packet, 0},

@@ -69,7 +69,7 @@ defmodule River.StreamHandlerTest do
     })
 
     assert_receive {:error, %Response{closed: true, code: 401}}
-    :timer.sleep(10)
+    :timer.sleep(50)
     refute Process.alive?(pid)
   end
 end
